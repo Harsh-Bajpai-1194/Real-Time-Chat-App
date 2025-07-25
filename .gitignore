@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+
+# ngrok binary
+ngrok/
+
+# Environment variables
+.env
+
+# Logs
+*.log
