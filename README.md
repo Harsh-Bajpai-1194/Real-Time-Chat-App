@@ -1,7 +1,7 @@
 # Real-Time Chat App
 
 A simple real-time chat application with **Node.js**, **Express**, and **Socket.IO**.
- 
+
 ---
 
 ## 🚀 Features
