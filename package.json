@@ -4,20 +4,20 @@
   "description": "A simple real-time chat application with Node.js, Express, and Socket.IO.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "server": "nodemon server.js",
+    "client": "pnpm --prefix client start",
+    "dev": "concurrently \"pnpm run server\" \"pnpm run client\""
   },
-  "keywords": [
-    "chat",
-    "real-time",
-    "socket.io",
-    "express"
-  ],
-  "author": "Harsh-Bajpai-1194",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^8.5.1",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4"
   }
 }
