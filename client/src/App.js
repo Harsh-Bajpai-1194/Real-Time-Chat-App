@@ -59,6 +59,12 @@ function App() {
     e.preventDefault();
     if (currentMessage.trim()) {
       socket.emit('chat message', currentMessage, room);
+      
+      // Optimistically add our own message to the UI
+      setMessages((prevMessages) => [
+        ...prevMessages, 
+        { username: username, text: currentMessage, type: 'chat' }
+      ]);
       setCurrentMessage('');
     }
   };
