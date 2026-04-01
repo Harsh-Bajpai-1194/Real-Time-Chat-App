@@ -58,6 +58,11 @@ io.on('connection', (socket) => {
     socket.on('chat message', async (msg, room) => {
         if (!msg.trim() || !room) return;
 
+        // Block the message entirely if it contains profanity
+        if (filter.isProfane(msg)) {
+            return socket.emit('system message', 'Your message was blocked for containing inappropriate language.');
+        }
+
         const messageData = {
             username: socket.username || 'Anonymous',
             text: filter.clean(msg),
