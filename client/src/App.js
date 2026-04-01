@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
 // Connect to the backend server
-const socket = io('http://localhost:7777');
+const socket = io("https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
+
 
 function App() {
   const [username, setUsername] = useState('');
@@ -60,11 +61,6 @@ function App() {
     if (currentMessage.trim()) {
       socket.emit('chat message', currentMessage, room);
       
-      // Optimistically add our own message to the UI
-      setMessages((prevMessages) => [
-        ...prevMessages, 
-        { username: username, text: currentMessage, type: 'chat' }
-      ]);
       setCurrentMessage('');
     }
   };

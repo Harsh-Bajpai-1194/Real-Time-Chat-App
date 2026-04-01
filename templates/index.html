@@ -22,14 +22,29 @@
         var input = document.getElementById('input');
         var messages = document.getElementById('messages');
         var username = prompt("Enter your username:");
+        var room = '123'; // The room we want to join, as you mentioned
     
         // Set username when user connects
         socket.emit('set username', username);
+
+        // Join the specific chat room
+        joinRoom(room);
     
-        // Add listener for chat history
+        // Add listener for chat history upon joining a room
+        socket.on('chat history', function(history) {
+            messages.innerHTML = ''; // Clear out any existing messages
+            history.forEach(function(msg) {
+                var item = document.createElement('li');
+                item.textContent = msg.username + ': ' + msg.text;
+                messages.appendChild(item);
+            });
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        // Add listener for new chat messages
         socket.on('chat message', function(msg) {
             var item = document.createElement('li');
-            item.textContent = msg;
+            item.textContent = msg.username + ': ' + msg.text;
             messages.appendChild(item);
             window.scrollTo(0, document.body.scrollHeight);
         });
@@ -38,7 +53,7 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             if (input.value) {
-                socket.emit('chat message', input.value);
+                socket.emit('chat message', input.value, room);
                 input.value = '';
             }
         });
