@@ -17,6 +17,9 @@ const io = socketIo(server, {
 
 const filter = new Filter();
 
+// Add custom offensive words to the filter that might not be in the default dictionary
+filter.addWords('nigga', 'n*gga');
+
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/realtime-chat';
