@@ -2,8 +2,8 @@ import './App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-// Connect to the backend server
-const socket = io("https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
+// Connect to the backend server (dynamic for production vs local/codespaces)
+const socket = io(process.env.NODE_ENV === 'production' ? undefined : "https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
 
 
 function App() {
