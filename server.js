@@ -4,6 +4,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
+const Filter = require('bad-words');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +14,8 @@ const io = socketIo(server, {
         methods: ["GET", "POST"]
     }
 });
+
+const filter = new Filter();
 
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
@@ -54,7 +57,7 @@ io.on('connection', (socket) => {
 
         const messageData = {
             username: socket.username || 'Anonymous',
-            text: msg,
+            text: filter.clean(msg),
             room: room
         };
 
