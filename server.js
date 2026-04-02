@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
 
         const messageData = {
             username: socket.username || 'Anonymous',
-            text: filter.clean(msg),
+            text: msg,
             room: room
         };
 
