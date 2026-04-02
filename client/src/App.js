@@ -2,6 +2,8 @@ import './App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
+import GoogleSignIn from './components/GoogleSignIn';
+
 // Connect to the backend server (dynamic for production vs local/codespaces)
 const socket = io(process.env.NODE_ENV === 'production' ? undefined : "https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
 
@@ -65,11 +67,21 @@ function App() {
     }
   };
 
+  const handleGoogleSignIn = (user) => {
+    setUsername(user.name);
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="login-container">
         <form onSubmit={handleLogin} className="login-form">
           <h2>Join Chat</h2>
+          
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+            <GoogleSignIn onSignIn={handleGoogleSignIn} />
+          </div>
+          <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
+
           <input
             type="text"
             placeholder="Enter your username"
