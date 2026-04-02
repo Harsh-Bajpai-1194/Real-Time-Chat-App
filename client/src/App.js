@@ -15,6 +15,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const messagesEndRef = useRef(null);
+  const [showRoomForm, setShowRoomForm] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,35 +70,52 @@ function App() {
 
   const handleGoogleSignIn = (user) => {
     setUsername(user.name);
+    setShowRoomForm(true); // Move to the next step automatically
   };
 
   if (!isLoggedIn) {
     return (
       <div className="login-container">
-        <form onSubmit={handleLogin} className="login-form">
-          <h2>Join Chat</h2>
-          
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-            <GoogleSignIn onSignIn={handleGoogleSignIn} />
-          </div>
-          <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
+        {!showRoomForm ? (
+          <div className="login-form">
+            <h2>Join Chat</h2>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+              <GoogleSignIn onSignIn={handleGoogleSignIn} />
+            </div>
+            <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
 
-          <input
-            type="text"
-            placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Enter room name"
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            required
-          />
-          <button type="submit">Join</button>
-        </form>
+            <button type="button" onClick={() => setShowRoomForm(true)}>
+              Join as a Guest User
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleLogin} className="login-form">
+            <h2>Join Room</h2>
+            
+            {!username ? (
+              <input
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            ) : (
+              <p style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Welcome, <strong>{username}</strong>!</p>
+            )}
+
+            <input
+              type="text"
+              placeholder="Enter room name"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              required
+            />
+            <button type="submit">Join Room</button>
+            <button type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }} style={{ backgroundColor: '#e9ecef', color: '#333' }}>Back</button>
+          </form>
+        )}
       </div>
     );
   }
