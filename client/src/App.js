@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
 import GoogleSignIn from './GoogleSignIn';
+import EmojiPicker from 'emoji-picker-react';
 
 // Connect to the backend server (dynamic for production vs local/codespaces)
 const socket = io(process.env.NODE_ENV === 'production' ? undefined : "https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
@@ -16,6 +17,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const messagesEndRef = useRef(null);
   const [showRoomForm, setShowRoomForm] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,6 +73,7 @@ function App() {
       socket.emit('chat message', currentMessage, room);
       
       setCurrentMessage('');
+      setShowEmojiPicker(false); // Hide picker after sending message
     }
   };
 
@@ -135,7 +138,15 @@ function App() {
         ))}
         <div ref={messagesEndRef} />
       </main>
-      <form onSubmit={sendMessage} className="message-form">
+      <form onSubmit={sendMessage} className="message-form" style={{ position: 'relative' }}>
+        {showEmojiPicker && (
+          <div style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 100, marginBottom: '10px' }}>
+            <EmojiPicker onEmojiClick={(emojiObject) => setCurrentMessage(prev => prev + emojiObject.emoji)} />
+          </div>
+        )}
+        <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0 10px' }}>
+          😀
+        </button>
         <input
           type="text"
           placeholder="Type a message..."
