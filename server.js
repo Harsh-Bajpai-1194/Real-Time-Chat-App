@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
         }
 
         const messageData = {
-            username: socket.username || 'Anonymous',
+            username: socket.username,
             text: msg,
             room: room
         };
@@ -111,6 +111,12 @@ io.on('connection', (socket) => {
         } catch (error) {
             console.error('Error fetching chat history:', error);
         }
+    });
+
+    // Handle leaving rooms
+    socket.on('leave room', (room) => {
+        socket.leave(room);
+        io.to(room).emit('system message', `${socket.username || 'Anonymous'} has left the room.`);
     });
 
     // Handle disconnect
