@@ -82,6 +82,13 @@ function App() {
     setShowRoomForm(true); // Move to the next step automatically
   };
 
+  const handleLeaveRoom = () => {
+    socket.emit('leave room', room);
+    setIsLoggedIn(false);
+    setRoom('');
+    setMessages([]);
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="login-container">
@@ -124,7 +131,23 @@ function App() {
   }
 
   return (
-    <div className="chat-container">
+    <div className="chat-container" style={{ position: 'relative' }}>
+      <button 
+        onClick={handleLeaveRoom}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '20px',
+          padding: '8px 16px',
+          backgroundColor: '#ff4d4d',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Leave Room
+      </button>
       <header className="chat-header">
         <h1>Room: {room}</h1>
         <p>Welcome, {username}</p>
