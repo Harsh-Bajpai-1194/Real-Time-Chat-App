@@ -19,7 +19,7 @@ const io = socketIo(server, {
 const filter = new Filter();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-app.use(express.json()); // Allow Express to parse JSON bodies
+app.use(express.json()); 
 
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
@@ -86,14 +86,15 @@ io.on('connection', (socket) => {
             room: room
         };
 
-        // 1. Save message to database
+        // 1. Broadcast message to the room IMMEDIATELY for a real-time feel
+        io.to(room).emit('chat message', messageData);
+
+        // 2. Save message to database in the background
         try {
             const message = new Message(messageData);
             await message.save();
-            // 2. Broadcast message to the room
-            io.to(room).emit('chat message', messageData);
         } catch (error) {
-            console.error('Error saving or broadcasting message:', error);
+            console.error('Error saving message to database:', error);
         }
     });
 
