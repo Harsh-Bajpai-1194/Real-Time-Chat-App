@@ -5,6 +5,7 @@ const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
 const Filter = require('bad-words');
+const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,9 +17,9 @@ const io = socketIo(server, {
 });
 
 const filter = new Filter();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Add custom offensive words to the filter that might not be in the default dictionary
-filter.addWords('nigga', 'n*gga');
+app.use(express.json()); // Allow Express to parse JSON bodies
 
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
@@ -42,6 +43,22 @@ const Message = mongoose.model('Message', messageSchema);
 // We will serve the React frontend from its own development server.
 // The line below is no longer needed for development.
 // app.use(express.static(path.join(__dirname, 'templates')));
+
+// --- Authentication Routes ---
+app.post('/api/auth/google', async (req, res) => {
+    const { token } = req.body;
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        res.json({ success: true, user: { name: payload.name, email: payload.email, picture: payload.picture } });
+    } catch (error) {
+        console.error('Google token verification failed:', error);
+        res.status(401).json({ success: false, message: 'Invalid Google token' });
+    }
+});
 
 io.on('connection', (socket) => {
     let username = 'Anonymous';
