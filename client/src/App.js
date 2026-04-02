@@ -52,8 +52,14 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (username.trim() && room.trim()) {
-      socket.emit('set username', username, room);
+    if (room.trim()) {
+      let finalUsername = username;
+      // Generate a random guest username if they didn't sign in with Google
+      if (!username.trim()) {
+        finalUsername = `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        setUsername(finalUsername);
+      }
+      socket.emit('set username', finalUsername, room);
       socket.emit('join room', room);
       setIsLoggedIn(true);
     }
@@ -94,13 +100,7 @@ function App() {
             <h2>Join Room</h2>
             
             {!username ? (
-              <input
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
+              <p style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Joining as <strong>Guest</strong></p>
             ) : (
               <p style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Welcome, <strong>{username}</strong>!</p>
             )}
