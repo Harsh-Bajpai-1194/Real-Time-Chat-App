@@ -8,6 +8,12 @@ import EmojiPicker from 'emoji-picker-react';
 // Connect to the backend server (dynamic for production vs local/codespaces)
 const socket = io(process.env.NODE_ENV === 'production' ? undefined : "https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
 
+const getFormattedTime = (timestamp) => {
+  if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const date = new Date(timestamp);
+  return isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 
 function App() {
   const [username, setUsername] = useState('');
