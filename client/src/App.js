@@ -30,17 +30,17 @@ function App() {
   useEffect(() => {
     // Listen for incoming chat messages
     socket.on('chat message', (message) => {
-      setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat' }]);
+      setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat', time: getFormattedTime(message.timestamp) }]);
     });
 
     // Listen for system messages (e.g., user joins)
     socket.on('system message', (message) => {
-      setMessages((prevMessages) => [...prevMessages, { text: message, type: 'system' }]);
+      setMessages((prevMessages) => [...prevMessages, { text: message, type: 'system', time: getFormattedTime() }]);
     });
 
     // Load chat history sent from server
     socket.on('chat history', (history) => {
-      const formattedHistory = history.map(msg => ({ ...msg, type: 'chat' }));
+      const formattedHistory = history.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
       setMessages(formattedHistory);
     });
 
@@ -157,6 +157,7 @@ function App() {
           <div key={index} className={`message-item ${msg.type === 'system' ? 'system' : ''}`}>
             {msg.type === 'chat' && <span className="username">{msg.username}:</span>}
             <span className="text">{msg.text}</span>
+              <span className="timestamp" style={{ fontSize: '0.75rem', color: '#888', marginLeft: '10px' }}>{msg.time}</span>
           </div>
         ))}
         <div ref={messagesEndRef} />

@@ -39,11 +39,6 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model('Message', messageSchema);
 
-// In a MERN stack, the Express server's primary role is to be an API.
-// We will serve the React frontend from its own development server.
-// The line below is no longer needed for development.
-// app.use(express.static(path.join(__dirname, 'templates')));
-
 // --- Authentication Routes ---
 app.post('/api/auth/google', async (req, res) => {
     const { token } = req.body;
