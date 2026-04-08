@@ -153,46 +153,46 @@ function App() {
   }
 
   return (
-    <div className="chat-container" style={{ position: 'relative' }}>
-      <button 
-        onClick={() => {
-          handleLeaveRoom();
-          setShowRoomForm(true);
-        }}
-        style={{
-          position: 'absolute',
-          top: '10px',
-          right: '20px',
-          padding: '8px 16px',
-          backgroundColor: '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-      >
-        Join Room
-      </button>
-      <button 
-        onClick={handleLeaveRoom}
-        style={{
-          position: 'absolute',
-          top: '10px',
-          right: '140px',
-          padding: '8px 16px',
-          backgroundColor: '#ff4d4d',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-      >
-        Leave Room
-      </button>
-      <header className="chat-header">
-        <h1>Room: {room}</h1>
-        <p>Welcome, {username}</p>
+    <div className="chat-container">
+      <header className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
+        <div>
+          <h1 style={{ margin: '0 0 5px 0' }}>Room: {room}</h1>
+          <p style={{ margin: 0 }}>Welcome, {username}</p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={handleLeaveRoom}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#ff4d4d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Leave Room
+          </button>
+          <button 
+            onClick={() => {
+              handleLeaveRoom();
+              setShowRoomForm(true);
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Join Room
+          </button>
+        </div>
       </header>
+
       <main className="chat-messages">
         {messages.map((msg, index) => (
           <div key={index} className={`message-item ${msg.type === 'system' ? 'system' : ''}`}>
@@ -203,6 +203,7 @@ function App() {
         ))}
         <div ref={messagesEndRef} />
       </main>
+
       <form onSubmit={sendMessage} className="message-form" style={{ position: 'relative' }}>
         {showEmojiPicker && (
           <div style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 100, marginBottom: '10px' }}>
