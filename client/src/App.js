@@ -162,7 +162,7 @@ function App() {
         style={{
           position: 'absolute',
           top: '10px',
-          right: '140px',
+          right: '20px',
           padding: '8px 16px',
           backgroundColor: '#4CAF50',
           color: 'white',
@@ -178,7 +178,7 @@ function App() {
         style={{
           position: 'absolute',
           top: '10px',
-          right: '20px',
+          right: '140px',
           padding: '8px 16px',
           backgroundColor: '#ff4d4d',
           color: 'white',
