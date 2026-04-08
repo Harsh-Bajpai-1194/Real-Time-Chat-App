@@ -97,7 +97,23 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="login-container">
+      <div className="login-container" style={{ position: 'relative' }}>
+        <button 
+          onClick={() => setShowRoomForm(true)}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '20px',
+            padding: '8px 16px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Join Room
+        </button>
         {!showRoomForm ? (
           <div className="login-form">
             <h2>Join Chat</h2>
@@ -138,6 +154,25 @@ function App() {
 
   return (
     <div className="chat-container" style={{ position: 'relative' }}>
+      <button 
+        onClick={() => {
+          handleLeaveRoom();
+          setShowRoomForm(true);
+        }}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '140px',
+          padding: '8px 16px',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Join Room
+      </button>
       <button 
         onClick={handleLeaveRoom}
         style={{
