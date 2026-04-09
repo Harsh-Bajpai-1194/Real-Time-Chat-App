@@ -97,23 +97,10 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="login-container" style={{ position: 'relative' }}>
-        <button 
-          onClick={() => setShowRoomForm(true)}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '20px',
-            padding: '8px 16px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Join Room
-        </button>
+      <div className="login-container">
+        <div className="top-right-button">
+          <button className="btn-success" onClick={() => setShowRoomForm(true)}>Join Room</button>
+        </div>
         {!showRoomForm ? (
           <div className="login-form">
             <h2>Join Chat</h2>
@@ -123,7 +110,7 @@ function App() {
             </div>
             <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
 
-            <button type="button" onClick={() => setShowRoomForm(true)}>
+            <button className="btn-primary" type="button" onClick={() => setShowRoomForm(true)}>
               Join as a Guest User
             </button>
           </div>
@@ -144,8 +131,10 @@ function App() {
               onChange={(e) => setRoom(e.target.value)}
               required
             />
-            <button type="submit">Join Room</button>
-            <button type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }} style={{ backgroundColor: '#e9ecef', color: '#333' }}>Back</button>
+            <div className="form-actions">
+              <button className="btn-primary" type="submit">Join Room</button>
+              <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
+            </div>
           </form>
         )}
       </div>
@@ -154,38 +143,18 @@ function App() {
 
   return (
     <div className="chat-container">
-      <header className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-        <div>
-          <h1 style={{ margin: '0 0 5px 0' }}>Room: {room}</h1>
-          <p style={{ margin: 0 }}>Welcome, {username}</p>
+      <header className="chat-header">
+        <div className="chat-header-info">
+          <h1>Room: {room}</h1>
+          <p>Welcome, {username}</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            onClick={handleLeaveRoom}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#ff4d4d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Leave Room
-          </button>
-          <button 
+        <div className="chat-header-actions">
+          <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
+          <button className="btn-success"
             onClick={() => {
               handleLeaveRoom();
               setShowRoomForm(true);
-            }}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
             }}
           >
             Join Room
@@ -198,19 +167,19 @@ function App() {
           <div key={index} className={`message-item ${msg.type === 'system' ? 'system' : ''}`}>
             {msg.type === 'chat' && <span className="username">{msg.username}:</span>}
             <span className="text">{msg.text}</span>
-              <span className="timestamp" style={{ fontSize: '0.75rem', color: '#888', marginLeft: '10px' }}>{msg.time}</span>
+            <span className="timestamp">{msg.time}</span>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </main>
 
-      <form onSubmit={sendMessage} className="message-form" style={{ position: 'relative' }}>
+      <form onSubmit={sendMessage} className="message-form">
         {showEmojiPicker && (
-          <div style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 100, marginBottom: '10px' }}>
+          <div className="emoji-picker-container">
             <EmojiPicker onEmojiClick={(emojiObject) => setCurrentMessage(prev => prev + emojiObject.emoji)} />
           </div>
         )}
-        <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0 10px' }}>
+        <button type="button" className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
           😀
         </button>
         <input
@@ -219,7 +188,7 @@ function App() {
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
         />
-        <button type="submit">Send</button>
+        <button className="btn-primary" type="submit">Send</button>
       </form>
     </div>
   );
