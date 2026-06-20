@@ -4,14 +4,15 @@ on:
   issue_comment:
     types: [created]
 
+# Set permissions at the top level to ensure the token has access
+permissions:
+  issues: write
+
 jobs:
   assign:
-    permissions:
-      issues: write
-
     runs-on: ubuntu-latest
-    # Only run if it's an issue (not a PR), is unassigned, and the comment contains "/claim"
-    if: !github.event.issue.pull_request && github.event.issue.assignee == null && contains(github.event.comment.body, '/claim')
+    # FIXED LINE 14: Wrapped the expression in ${{ }} so YAML parses it correctly!
+    if: ${{ !github.event.issue.pull_request && github.event.issue.assignees.length == 0 && github.event.comment.body == '/claim' }}
     
     steps:
       - name: Assign issue to commenter
@@ -30,10 +31,10 @@ jobs:
               assignees: [commenter]
             });
             
-            // Optional: Leave a friendly reply confirming the assignment!
+            // Leave a friendly reply confirming the assignment and 24-hour rule
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `Assigned to @${commenter}! Happy coding! 🚀`
+              body: `Assigned to @${commenter}! You have 24 hours to link a Pull Request. Happy coding! 🚀`
             });

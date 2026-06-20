@@ -71,9 +71,10 @@ git push origin feature/your-feature-name
 1. Create a `.env` file in the repo root:
 
 ```env
+YOUR_GOOGLE_CLIENT_ID_HERE=your_google_client_id_string
 MONGO_URI=your_mongodb_connection_string
 GITHUB_TOKEN=your_github_token
-PORT=10000
+PORT=7777
 ```
 
 2. Install dependencies and start the server:
