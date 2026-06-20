@@ -1,15 +1,14 @@
 # 🤝 Contributing
 
-Thank you for helping improve this project! This repository is designed to support a full-stack leaderboard system with automated data tracking, real-time analytics, and a modern MERN-style architecture.
+Thank you for helping improve this project! This repository is designed to support a full-stack Chat Application with automated data tracking, real-time analytics, and a modern MERN-style architecture.
 
 ## 🚀 Project Overview
 
 This repo powers a real-time competitive programming leaderboard with:
 
-- Automated daily scraping and synchronization using GitHub Actions and Python.
-- MongoDB storage for leaderboard data, user history, and activity graphs.
-- Express API endpoints for leaderboard delivery and manual update triggers.
-- React frontend with interactive progress charts and admin controls.
+- MongoDB storage for data, user history, and messages.
+- Express API endpoints for message delivery and manual update triggers.
+- React frontend with interactive chat rooms and admin controls.
 
 ## 🛠️ How to Contribute
 
@@ -62,9 +61,9 @@ git push origin feature/your-feature-name
 ### Prerequisites
 
 - Node.js v18+
-- Python 3.9+
 - MongoDB Atlas account or local MongoDB instance
 - GitHub Personal Access Token with `workflow` scope (if working with GitHub Actions automation)
+- Google Cloud Console Account for Google Client ID.
 
 ### Backend Setup
 
@@ -133,7 +132,7 @@ This repository is prepared for future enhancements, including:
 
 - Global OAuth authentication for user logins.
 - TypeScript migration for stronger type safety.
-- Expanded admin controls and automated badge classification.
+- Expanded admin controls and classification.
 
 ## 🤝 Support
 
@@ -145,4 +144,4 @@ If you want to support development or report a problem:
 
 ---
 
-Thank you for contributing! Your improvements help keep the leaderboard reliable, fast, and easy to use.
+Thank you for contributing! Your improvements help keep the application reliable, fast, and easy to use.
