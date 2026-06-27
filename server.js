@@ -4,14 +4,16 @@ const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 const Filter = require('bad-words');
+const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: "*", // Allow any origin to connect, useful for GitHub Codespaces
+        origin: process.env.CORS_ORIGIN || "*", // Allow specific origin or any for development
         methods: ["GET", "POST"]
     }
 });
@@ -19,6 +21,7 @@ const io = socketIo(server, {
 const filter = new Filter();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+app.use(cors()); // Add this line to enable CORS for all HTTP routes
 app.use(express.json()); 
 
 // --- MongoDB Connection ---
@@ -121,11 +124,32 @@ io.on('connection', (socket) => {
     });
 });
 
-// Serve static files from the React frontend app
-app.use(express.static(path.join(__dirname, 'client/build')));
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-});
+// Serve the built frontend when it exists; otherwise provide a helpful local-dev fallback.
+const buildPath = path.join(__dirname, 'client', 'build');
+const buildIndexPath = path.join(buildPath, 'index.html');
+
+if (fs.existsSync(buildIndexPath)) {
+    app.use(express.static(buildPath));
+    app.get('*', (req, res) => {
+        res.sendFile(buildIndexPath);
+    });
+} else {
+    app.get('*', (req, res) => {
+        res.status(200).send(`
+            <!doctype html>
+            <html>
+            <head><meta charset="utf-8"><title>Real-Time Chat App</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 2rem;">
+                <h1>Real-Time Chat App</h1>
+                <p>The backend is running successfully.</p>
+                <p>Start the React frontend with:</p>
+                <pre>cd client && npm start</pre>
+                <p>Then open <a href="http://localhost:3000">http://localhost:3000</a>.</p>
+            </body>
+            </html>
+        `);
+    });
+}
 
 const PORT = process.env.PORT || 7777;
 server.listen(PORT, () => {

@@ -87,16 +87,29 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
 1. Clone the repo and install dependencies:
    ```bash
    git clone https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App.git
-   cd "Real-Time Chat App"
+   cd Real-Time-Chat-App
+   npm install
+   cd client
    npm install
    ```
 
-2. Start the server:
+2. Start the backend from the project root:
    ```bash
-   node server.js
+   cd ..
+   npm run start
    ```
 
-3. The app will run on:
+3. In a second terminal, start the React client:
+   ```bash
+   cd client
+   npm start
+   ```
+
+4. The app will be available at:
+   ```
+   http://localhost:3000
+   ```
+   and the backend will run on:
    ```
    http://localhost:7777
    ```

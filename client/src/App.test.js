@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders the join chat screen', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+
+  expect(screen.getByText(/join chat/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /join room/i })).toBeInTheDocument();
 });
