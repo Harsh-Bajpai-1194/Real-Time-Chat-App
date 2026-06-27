@@ -16,15 +16,69 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
 
 ```yaml
 📦Real-Time Chat App/
- ┣ 📂 ngork             # Extension File
- ┣ 📂 static
- ┃ ┣ 📜server.js        # Node.js backend
- ┣ 📂 templates 
- ┃ ┣ 📜index.html       # Frontend (to host on GitHub Pages)
- ┃ ┣ 📜style.css
- ┃ ┣ 📜client.js
- ┣ 📜package.json
- ┣ 📜README.md
+┣ 📂.github/              # GitHub configurations
+┃ ┣ 📂workflows/        # CI/CD pipelines
+┃ ┃ ┣ 📜assign-claim.yml # Issue assignment
+┃ ┃ ┣ 📜unassign-stale.yml # Stale issue cleanup
+┃ ┣ 📜dependabot.yml      # Dependency updates
+┣ 📂client/             # Frontend application
+┃ ┣ 📂public/           # Static assets
+┃ ┃ ┣ 📂Backgrounds/    # UI theme assets
+┃ ┃ ┃ ┣ 📜aqua.png
+┃ ┃ ┃ ┣ 📜brown.png
+┃ ┃ ┃ ┣ 📜green.png
+┃ ┃ ┃ ┣ 📜navy-blue.png
+┃ ┃ ┃ ┣ 📜orange.png
+┃ ┃ ┃ ┣ 📜pink.png
+┃ ┃ ┃ ┣ 📜red.png
+┃ ┃ ┃ ┣ 📜sky-blue.png
+┃ ┃ ┃ ┣ 📜violet.png
+┃ ┃ ┃ ┣ 📜yellow.png
+┃ ┃ ┣ 📜favicon.ico      # Tab icon
+┃ ┃ ┣ 📜index.html       # HTML entry point
+┃ ┃ ┣ 📜logo192.png      # App icon
+┃ ┃ ┣ 📜logo512.png      # App icon
+┃ ┃ ┣ 📜manifest.json    # PWA configuration
+┃ ┃ ┣ 📜robots.txt       # Crawler rules
+┃ ┣ 📂src/              # React source code
+┃ ┃ ┣ 📂sounds/         # Audio notification files
+┃ ┃ ┃ ┣ 📜Imagine Dragons - Belie...
+┃ ┃ ┃ ┣ 📜John-Cena-The-Time-is-...
+┃ ┃ ┣ 📜App.css         # Main component styles
+┃ ┃ ┣ 📜App.js          # Main React component
+┃ ┃ ┣ 📜App.jsx         # App structure
+┃ ┃ ┣ 📜App.test.js     # Unit tests
+┃ ┃ ┣ 📜GoogleSignIn.js # Authentication logic
+┃ ┃ ┣ 📜index.css       # Global styles
+┃ ┃ ┣ 📜index.js        # App entry point
+┃ ┃ ┣ 📜logo.svg        # React logo
+┃ ┃ ┣ 📜reportWebVitals.js # Performance metrics
+┃ ┃ ┣ 📜setupTests.js   # Test environment setup
+┃ ┃ ┣ 📜.gitignore      # Untracked files
+┃ ┃ ┣ 📜GoogleSignIn.js # Duplicate auth logic
+┃ ┃ ┣ 📜README.md       # Client documentation
+┃ ┃ ┣ 📜package-lock.json # Dependency lock
+┃ ┃ ┣ 📜package.json    # Project dependencies
+┃ ┃ ┣ 📜pnpm-lock.yaml  # PNPM lock file
+┃ ┃ ┣ 📜pnpm-workspace.yaml # Workspace config
+┣ 📂static/             # Server static files
+┃ ┣ 📜server.js         # Backend entry
+┣ 📂templates/          # HTML templates
+┃ ┣ 📜client.js         # Client script
+┃ ┣ 📜index.html        # Landing page
+┃ ┣ 📜style.css         # Page styling
+┣ 📜.gitignore          # Global ignore rules
+┣ 📜CONTRIBUTING.md     # Guidelines
+┣ 📜LICENSE             # Licensing info
+┣ 📜README.md           # Project docs
+┣ 📜SECURITY.md         # Security policy
+┣ 📜_redirects          # Netlify/Vercel rules
+┣ 📜index.html          # Root HTML
+┣ 📜package-lock.json   # NPM lock file
+┣ 📜package.json        # Main dependencies
+┣ 📜pnpm-lock.yaml      # Lock file
+┣ 📜server.js           # Server script
+┣ 📜yarn.lock           # Yarn lock file
 
 ```
 ---
