@@ -67,6 +67,7 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
 ┃ ┣ 📜client.js         # Client script
 ┃ ┣ 📜index.html        # Landing page
 ┃ ┣ 📜style.css         # Page styling
+┣ 📜.env                # Environment and Secret Variables File
 ┣ 📜.gitignore          # Global ignore rules
 ┣ 📜CONTRIBUTING.md     # Guidelines
 ┣ 📜LICENSE             # Licensing info
@@ -112,6 +113,14 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
    and the backend will run on:
    ```
    http://localhost:7777
+   ```
+5. Don't forget to create this .env file.
+
+   ```
+   YOUR_GOOGLE_CLIENT_ID_HERE=GOOGLE_CLIENT_ID.apps.googleusercontent.com
+   MONGO_URI=your_mongodb_connection_string
+   GITHUB_TOKEN=your_github_token
+   PORT=7777
    ```
 
 ---
