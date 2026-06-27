@@ -4,9 +4,7 @@ import io from 'socket.io-client';
 
 import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
-
-// Connect to the backend server (dynamic for production vs local/codespaces)
-const socket = io(process.env.NODE_ENV === 'production' ? undefined : "https://miniature-tribble-v6546w6q6wxrhr6j-3000.app.github.dev");
+import { getSocketUrl } from './socket';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -22,6 +20,8 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
+  const pendingJoinRef = useRef(null);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -34,53 +34,92 @@ function App() {
   }, [messages]);
 
   useEffect(() => {
-    // Listen for incoming chat messages
-    socket.on('chat message', (message) => {
+    const newSocket = io(getSocketUrl(), {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socketRef.current = newSocket;
+
+    const handleConnect = () => {
+      const pendingJoin = pendingJoinRef.current;
+      if (pendingJoin) {
+        newSocket.emit('set username', pendingJoin.username, pendingJoin.room);
+        newSocket.emit('join room', pendingJoin.room);
+      }
+    };
+
+    const handleChatMessage = (message) => {
       setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat', time: getFormattedTime(message.timestamp) }]);
-    });
+    };
 
-    // Listen for system messages (e.g., user joins)
-    socket.on('system message', (message) => {
+    const handleSystemMessage = (message) => {
       setMessages((prevMessages) => [...prevMessages, { text: message, type: 'system', time: getFormattedTime() }]);
-    });
+    };
 
-    // Load chat history sent from server
-    socket.on('chat history', (history) => {
+    const handleChatHistory = (history) => {
       const formattedHistory = history.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
       setMessages(formattedHistory);
-    });
+    };
 
-    // Clean up listeners on component unmount
+    newSocket.on('connect', handleConnect);
+    newSocket.on('chat message', handleChatMessage);
+    newSocket.on('system message', handleSystemMessage);
+    newSocket.on('chat history', handleChatHistory);
+
     return () => {
-      socket.off('chat message');
-      socket.off('system message');
-      socket.off('chat history');
+      newSocket.off('connect', handleConnect);
+      newSocket.off('chat message', handleChatMessage);
+      newSocket.off('system message', handleSystemMessage);
+      newSocket.off('chat history', handleChatHistory);
+      newSocket.disconnect();
+      socketRef.current = null;
     };
   }, []);
+
+  const joinChatRoom = (roomName, selectedUsername) => {
+    const socket = socketRef.current;
+    const nextRoom = roomName.trim();
+    const nextUsername = selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+    pendingJoinRef.current = { room: nextRoom, username: nextUsername };
+
+    if (socket?.connected) {
+      socket.emit('set username', nextUsername, nextRoom);
+      socket.emit('join room', nextRoom);
+    } else {
+      setMessages((prevMessages) => [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime() }]);
+    }
+
+    setUsername(nextUsername);
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (room.trim()) {
-      let finalUsername = username;
-      // Generate a random guest username if they didn't sign in with Google
-      if (!username.trim()) {
-        finalUsername = `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-        setUsername(finalUsername);
-      }
-      socket.emit('set username', finalUsername, room);
-      socket.emit('join room', room);
+      joinChatRoom(room, username);
       setIsLoggedIn(true);
     }
   };
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (currentMessage.trim()) {
-      socket.emit('chat message', currentMessage, room);
-      
-      setCurrentMessage('');
-      setShowEmojiPicker(false); // Hide picker after sending message
+    const trimmedMessage = currentMessage.trim();
+    if (!trimmedMessage) {
+      return;
     }
+
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setMessages((prevMessages) => [...prevMessages, { text: 'Unable to send right now. Please wait for the connection to finish.', type: 'system', time: getFormattedTime() }]);
+      return;
+    }
+
+    socket.emit('chat message', trimmedMessage, room.trim());
+    setCurrentMessage('');
+    setShowEmojiPicker(false);
   };
 
   const handleGoogleSignIn = (user) => {
@@ -89,7 +128,11 @@ function App() {
   };
 
   const handleLeaveRoom = () => {
-    socket.emit('leave room', room);
+    const socket = socketRef.current;
+    if (socket?.connected) {
+      socket.emit('leave room', room);
+    }
+    pendingJoinRef.current = null;
     setIsLoggedIn(false);
     setRoom('');
     setMessages([]);

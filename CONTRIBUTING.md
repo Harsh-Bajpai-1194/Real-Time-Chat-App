@@ -56,47 +56,42 @@ git push origin feature/your-feature-name
 - Include a summary of what changed and any testing notes.
 - If the issue is a bug fix, include steps to reproduce the problem and verify the fix.
 
-## 📦 Local Setup
+## 📦 How to run locally (Local Setup)
 
 ### Prerequisites
 
-- Node.js v18+
-- MongoDB Atlas account or local MongoDB instance
-- GitHub Personal Access Token with `workflow` scope (if working with GitHub Actions automation)
-- Google Cloud Console Account for Google Client ID.
+- Node.js v18+ or later
+- MongoDB running locally or a MongoDB Atlas connection string
+- Google OAuth Client ID if using Google sign-in
 
-### Backend Setup
-
-1. Create a `.env` file in the repo root:
-
-```env
-YOUR_GOOGLE_CLIENT_ID_HERE=your_google_client_id_string
-MONGO_URI=your_mongodb_connection_string
-GITHUB_TOKEN=your_github_token
-PORT=7777
-```
-
-2. Install dependencies and start the server:
+### Run the backend
 
 ```bash
-npm install
-node server.js
+npm install # From the repo root, install server dependencies
+npm run start # Start the backend server that listen on: http://localhost:7777
 ```
 
-### Frontend Setup
+Now, Open a second terminal:-
 
-1. Navigate to the frontend directory:
+### Run the frontend
 
 ```bash
-cd client
+cd client # Go to the client folder.
+npm install # Install frontend dependencies.
+npm start # Start the React app.
 ```
 
-2. Install dependencies and start the app:
+The frontend will open at:-
 
 ```bash
-npm install
-npm run dev
+http://localhost:3000
 ```
+
+### Notes
+
+- The frontend uses `http://localhost:7777` to connect to the backend in development.
+- If you need to use a custom socket URL, set `REACT_APP_SOCKET_URL` in the client environment.
+- If Google sign-in is not configured, you can still join as a guest user.
 
 ## 📌 API Endpoints
 
