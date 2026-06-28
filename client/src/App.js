@@ -24,6 +24,38 @@ function App() {
   const pendingJoinRef = useRef(null);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const backgroundColors = ['#FFFFFF', '#F0F8FF', '#FAEBD7', '#E6E6FA', '#FFF0F5', '#282c34'];
+  const [backgroundColor, setBackgroundColor] = useState(backgroundColors[0]);
+  const backgroundOptions = [
+    'aqua.png',
+    'green.png',
+    'yellow.png',
+    'orange.png',
+    'pink.png',
+    'red.png',
+    'brown.png',
+    'navy-blue.png',
+    'sky-blue.png',
+    'violet.png',
+  ];
+  const [selectedBackground, setSelectedBackground] = useState('');
+
+  const toggleBackgroundPicker = () => {
+    setShowBackgroundPicker((prev) => !prev);
+  };
+
+  const selectBackground = (bg) => {
+    setSelectedBackground(bg);
+    setShowBackgroundPicker(false);
+  };
+
+  const changeBackground = () => {
+    const currentIndex = backgroundColors.indexOf(backgroundColor);
+    const nextIndex = (currentIndex + 1) % backgroundColors.length;
+    setBackgroundColor(backgroundColors[nextIndex]);
+    setSelectedBackground('');
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,14 +217,20 @@ function App() {
   }
 
   return (
-    <div className="chat-container">
+    <div className={`chat-container${selectedBackground ? ' background-selected' : ''}`} style={{
+      backgroundColor: selectedBackground ? 'transparent' : backgroundColor,
+      backgroundImage: selectedBackground ? `url(${process.env.PUBLIC_URL}/Backgrounds/${selectedBackground})` : 'none',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }}>
       <header className="chat-header">
         <div className="chat-header-info">
           <h1>Room: {room}</h1>
           <p>Welcome, {username}</p>
         </div>
-        
         <div className="chat-header-actions">
+          <button className="btn-secondary change-bg-btn" onClick={toggleBackgroundPicker}>Change Background</button>
           <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
           <button className="btn-success"
             onClick={() => {
@@ -204,6 +242,20 @@ function App() {
           </button>
         </div>
       </header>
+      {showBackgroundPicker && (
+        <div className="background-picker">
+          {backgroundOptions.map((bg) => (
+            <button
+              key={bg}
+              type="button"
+              className={`background-thumb ${selectedBackground === bg ? 'active' : ''}`}
+              onClick={() => selectBackground(bg)}
+            >
+              <img src={`${process.env.PUBLIC_URL}/Backgrounds/${bg}`} alt={bg} />
+            </button>
+          ))}
+        </div>
+      )}
 
       <main className="chat-messages">
         {messages.map((msg, index) => (
