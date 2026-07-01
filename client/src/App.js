@@ -22,6 +22,7 @@ function App() {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const pendingJoinRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
@@ -40,6 +41,7 @@ function App() {
     'violet.png',
   ];
   const [selectedBackground, setSelectedBackground] = useState('');
+  const [typingUser, setTypingUser] = useState('');
 
   const toggleBackgroundPicker = () => {
     setShowBackgroundPicker((prev) => !prev);
@@ -100,12 +102,26 @@ function App() {
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
     newSocket.on('chat history', handleChatHistory);
+    
+
+      newSocket.on("typing", (username) => {
+    setTypingUser(`${username} is typing...`);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+        setTypingUser("");
+      }, 2000);
+    });
 
     return () => {
       newSocket.off('connect', handleConnect);
       newSocket.off('chat message', handleChatMessage);
       newSocket.off('system message', handleSystemMessage);
       newSocket.off('chat history', handleChatHistory);
+      newSocket.off("typing");
       newSocket.disconnect();
       socketRef.current = null;
     };
@@ -268,6 +284,10 @@ function App() {
         <div ref={messagesEndRef} />
       </main>
 
+       {typingUser && (
+        <div className="typing-indicator">{typingUser}</div>
+    )}
+
       <form onSubmit={sendMessage} className="message-form">
         {showEmojiPicker && (
           <div className="emoji-picker-container">
@@ -281,7 +301,16 @@ function App() {
           type="text"
           placeholder="Type a message..."
           value={currentMessage}
-          onChange={(e) => setCurrentMessage(e.target.value)}
+          onChange={(e) => {
+              setCurrentMessage(e.target.value);
+
+            if (socketRef.current && room.trim()) {
+                socketRef.current.emit("typing", {
+                room: room.trim(),
+                username,
+              });
+            }
+          }}
         />
         <button className="btn-primary" type="submit">Send</button>
       </form>
