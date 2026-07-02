@@ -332,3 +332,11 @@ button:active {
     width: 100% !important; /* Forces the emoji picker to fit the screen */
   }
 }
+
+.typing-indicator {
+  margin: 6px 12px;
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+  min-height: 20px;
+}

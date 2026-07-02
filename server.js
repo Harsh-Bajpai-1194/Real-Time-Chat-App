@@ -68,6 +68,11 @@ io.on('connection', (socket) => {
         username = name.trim() || 'Anonymous';
         socket.username = username; // Store username on the socket instance
     });
+    
+    // Typing indicator
+        socket.on("typing", (data) => {
+        socket.to(data.room).emit("typing", data.username);
+    });
 
     // Handle chat messages
     socket.on('chat message', async (msg, room) => {
