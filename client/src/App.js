@@ -2,6 +2,7 @@ import './App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
+import { googleLogout } from '@react-oauth/google';
 import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
@@ -66,6 +67,21 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem('chatSession');
+    if (savedSession) {
+      const { name, room: savedRoom } = JSON.parse(savedSession);
+      if (name && savedRoom) {
+        setUsername(name);
+        setRoom(savedRoom);
+        setIsLoggedIn(true);
+        // By setting pendingJoinRef, the socket useEffect will handle joining the room
+        // once the connection is established.
+        pendingJoinRef.current = { room: savedRoom, username: name };
+      }
+    }
+  }, []); // Run only on initial mount
 
   useEffect(() => {
     const newSocket = io(getSocketUrl(), {
@@ -142,6 +158,10 @@ function App() {
     }
 
     setUsername(nextUsername);
+
+    // Save session to localStorage
+    const sessionData = { name: nextUsername, room: nextRoom };
+    localStorage.setItem('chatSession', JSON.stringify(sessionData));
   };
 
   const handleLogin = (e) => {
@@ -184,6 +204,8 @@ function App() {
     setIsLoggedIn(false);
     setRoom('');
     setMessages([]);
+    // Clear the session from storage
+    localStorage.removeItem('chatSession');
   };
 
   if (!isLoggedIn) {

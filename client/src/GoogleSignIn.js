@@ -1,13 +1,12 @@
 import React from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 const GoogleSignIn = ({ onSignIn }) => {
     const handleSuccess = (credentialResponse) => {
         try {
             // Decode the JWT token to extract the user's Google info
-            const payloadBase64 = credentialResponse.credential.split('.')[1];
-            const decodedJson = atob(payloadBase64);
-            const payload = JSON.parse(decodedJson);
+            const payload = jwtDecode(credentialResponse.credential);
             
             if (payload && payload.name) {
                 onSignIn({ name: payload.name, email: payload.email, picture: payload.picture });
