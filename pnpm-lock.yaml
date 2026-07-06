@@ -20,12 +20,15 @@ importers:
       google-auth-library:
         specifier: ^10.6.2
         version: 10.6.2
+      jwt-decode:
+        specifier: ^4.0.0
+        version: 4.0.0
       mongoose:
         specifier: ^8.5.1
-        version: 8.23.0
+        version: 8.23.0(supports-color@5.5.0)
       socket.io:
         specifier: ^4.7.5
-        version: 4.8.3
+        version: 4.8.3(supports-color@5.5.0)
     devDependencies:
       concurrently:
         specifier: ^8.2.2
@@ -409,6 +412,10 @@ packages:
 
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
+
+  jwt-decode@4.0.0:
+    resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
+    engines: {node: '>=18'}
 
   kareem@2.6.3:
     resolution: {integrity: sha512-C3iHfuGUXK2u8/ipq9LfjFfXFxAZMQJJq7vLS45r3D9Y2xQ/m4S8zaR4zMLFWh9AsNPXmcFfUDhTEO8UIC/V6Q==}
@@ -955,7 +962,7 @@ snapshots:
 
   engine.io-parser@5.2.3: {}
 
-  engine.io@6.6.6:
+  engine.io@6.6.6(supports-color@5.5.0):
     dependencies:
       '@types/cors': 2.8.19
       '@types/node': 25.5.0
@@ -1177,6 +1184,8 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
+  jwt-decode@4.0.0: {}
+
   kareem@2.6.3: {}
 
   lodash@4.17.21: {}
@@ -1214,13 +1223,13 @@ snapshots:
       bson: 6.10.4
       mongodb-connection-string-url: 3.0.2
 
-  mongoose@8.23.0:
+  mongoose@8.23.0(supports-color@5.5.0):
     dependencies:
       bson: 6.10.4
       kareem: 2.6.3
       mongodb: 6.20.0
       mpath: 0.9.0
-      mquery: 5.0.0
+      mquery: 5.0.0(supports-color@5.5.0)
       ms: 2.1.3
       sift: 17.1.3
     transitivePeerDependencies:
@@ -1235,7 +1244,7 @@ snapshots:
 
   mpath@0.9.0: {}
 
-  mquery@5.0.0:
+  mquery@5.0.0(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
     transitivePeerDependencies:
@@ -1387,7 +1396,7 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  socket.io-adapter@2.5.6:
+  socket.io-adapter@2.5.6(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       ws: 8.18.3
@@ -1396,22 +1405,22 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  socket.io-parser@4.2.6:
+  socket.io-parser@4.2.6(supports-color@5.5.0):
     dependencies:
       '@socket.io/component-emitter': 3.1.2
       debug: 4.4.3(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
-  socket.io@4.8.3:
+  socket.io@4.8.3(supports-color@5.5.0):
     dependencies:
       accepts: 1.3.8
       base64id: 2.0.0
       cors: 2.8.6
       debug: 4.4.3(supports-color@5.5.0)
-      engine.io: 6.6.6
-      socket.io-adapter: 2.5.6
-      socket.io-parser: 4.2.6
+      engine.io: 6.6.6(supports-color@5.5.0)
+      socket.io-adapter: 2.5.6(supports-color@5.5.0)
+      socket.io-parser: 4.2.6(supports-color@5.5.0)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
