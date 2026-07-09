@@ -1,5 +1,5 @@
 import React from 'react';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 
 const GoogleSignIn = ({ onSignIn }) => {
@@ -17,12 +17,10 @@ const GoogleSignIn = ({ onSignIn }) => {
     };
 
     return (
-        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com"}>
-            <GoogleLogin
-                onSuccess={handleSuccess}
-                onError={() => console.log('Google Login Failed')}
-            />
-        </GoogleOAuthProvider>
+        <GoogleLogin
+            onSuccess={handleSuccess}
+            onError={() => console.log('Google Login Failed')}
+        />
     );
 };
 

@@ -24,7 +24,13 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 mongoose.set('bufferCommands', false);
 mongoose.set('bufferTimeoutMS', 1000);
 
-app.use(cors()); // Add this line to enable CORS for all HTTP routes
+app.use(cors());
+app.use((req, res, next) => {
+    // This header is needed to allow the Google Sign-In popup to communicate with the main page.
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    next();
+});
+
 app.use(express.json()); 
 
 // --- MongoDB Connection ---
