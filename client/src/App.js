@@ -2,10 +2,10 @@ import './App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-import { googleLogout } from '@react-oauth/google';
 import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
+import Discover_Rooms from './Discover_Rooms';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -23,12 +23,11 @@ function App() {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const pendingJoinRef = useRef(null);
+  const roomRef = useRef();
   const typingTimeoutRef = useRef(null);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
-  const backgroundColors = ['#FFFFFF', '#F0F8FF', '#FAEBD7', '#E6E6FA', '#FFF0F5', '#282c34'];
-  const [backgroundColor, setBackgroundColor] = useState(backgroundColors[0]);
   const backgroundOptions = [
     'aqua.png',
     'green.png',
@@ -43,6 +42,10 @@ function App() {
   ];
   const [selectedBackground, setSelectedBackground] = useState('');
   const [typingUser, setTypingUser] = useState('');
+  const [showDiscover_Rooms, setShowDiscover_Rooms] = useState(false);
+  const [showCreateRoomPopup, setShowCreateRoomPopup] = useState(false);
+  const [pendingRoomSwitch, setPendingRoomSwitch] = useState(null);
+  const [roomsSignature, setRoomsSignature] = useState(Date.now());
 
   const toggleBackgroundPicker = () => {
     setShowBackgroundPicker((prev) => !prev);
@@ -53,20 +56,26 @@ function App() {
     setShowBackgroundPicker(false);
   };
 
-  const changeBackground = () => {
-    const currentIndex = backgroundColors.indexOf(backgroundColor);
-    const nextIndex = (currentIndex + 1) % backgroundColors.length;
-    setBackgroundColor(backgroundColors[nextIndex]);
-    setSelectedBackground('');
-  };
-
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current?.scrollIntoView) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Keep a ref to the current room name so it can be accessed inside socket event listeners
+    roomRef.current = room;
+  }, [room]);
+
+  useEffect(() => {
+    // When the room changes, we should clear out the old messages.
+    // This is safer than clearing them inside the functions that change the room.
+    setMessages([]);
+  }, [room]);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('chatSession');
@@ -102,22 +111,32 @@ function App() {
     };
 
     const handleChatMessage = (message) => {
-      setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat', time: getFormattedTime(message.timestamp) }]);
+      if (message.room === roomRef.current) {
+        setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat', time: getFormattedTime(message.timestamp) }]);
+      }
     };
 
     const handleSystemMessage = (message) => {
       setMessages((prevMessages) => [...prevMessages, { text: message, type: 'system', time: getFormattedTime() }]);
     };
 
-    const handleChatHistory = (history) => {
-      const formattedHistory = history.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
-      setMessages(formattedHistory);
+    const handleChatHistory = (history, roomName) => {
+      // By using a ref, we can check against the *current* room,
+      // preventing a race condition where history for a previous room arrives late.
+      if (roomRef.current === roomName) {
+        const formattedHistory = history.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
+        setMessages(formattedHistory);
+      }
+    };
+    const handleRoomsUpdated = () => {
+      setRoomsSignature(Date.now());
     };
 
     newSocket.on('connect', handleConnect);
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
     newSocket.on('chat history', handleChatHistory);
+    newSocket.on('rooms updated', handleRoomsUpdated);
     
 
       newSocket.on("typing", (username) => {
@@ -138,6 +157,7 @@ function App() {
       newSocket.off('system message', handleSystemMessage);
       newSocket.off('chat history', handleChatHistory);
       newSocket.off("typing");
+      newSocket.off('rooms updated', handleRoomsUpdated);
       newSocket.disconnect();
       socketRef.current = null;
     };
@@ -147,8 +167,16 @@ function App() {
     const socket = socketRef.current;
     const nextRoom = roomName.trim();
     const nextUsername = selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    const isSwitchingRooms = Boolean(room && room !== nextRoom);
+
+    if (isSwitchingRooms) {
+      setPendingRoomSwitch({ roomName: nextRoom, selectedUsername: nextUsername });
+      return 'confirm';
+    }
 
     pendingJoinRef.current = { room: nextRoom, username: nextUsername };
+    setRoom(nextRoom);
+    roomRef.current = nextRoom; // Manually update ref to prevent race condition
 
     if (socket?.connected) {
       socket.emit('set username', nextUsername, nextRoom);
@@ -162,6 +190,41 @@ function App() {
     // Save session to localStorage
     const sessionData = { name: nextUsername, room: nextRoom };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
+    setIsLoggedIn(true);
+    return 'joined';
+  };
+
+  const confirmRoomSwitch = () => {
+    if (!pendingRoomSwitch) {
+      return;
+    }
+
+    const socket = socketRef.current;
+    const nextRoom = pendingRoomSwitch.roomName.trim();
+    const nextUsername = pendingRoomSwitch.selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+    if (socket?.connected && room) {
+      socket.emit('leave room', room);
+    }
+
+    // Clear messages immediately and update room state
+    setRoom(nextRoom);
+    roomRef.current = nextRoom; // Manually update ref to prevent race condition
+    pendingJoinRef.current = { room: nextRoom, username: nextUsername };
+    setUsername(nextUsername);
+    setPendingRoomSwitch(null);
+
+    if (socket?.connected) {
+      socket.emit('set username', nextUsername, nextRoom);
+      socket.emit('join room', nextRoom);
+    } else {
+      setMessages((prevMessages) => [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime() }]);
+    }
+
+    const sessionData = { name: nextUsername, room: nextRoom };
+    localStorage.setItem('chatSession', JSON.stringify(sessionData));
+    setShowDiscover_Rooms(false);
+    setIsLoggedIn(true);
   };
 
   const handleLogin = (e) => {
@@ -203,17 +266,46 @@ function App() {
     pendingJoinRef.current = null;
     setIsLoggedIn(false);
     setRoom('');
-    setMessages([]);
     // Clear the session from storage
     localStorage.removeItem('chatSession');
   };
 
+  const handleOpenDiscover_Rooms = () => {
+    setShowDiscover_Rooms(true);
+  };
+
+  if (showDiscover_Rooms) {
+    return (
+      <>
+        <Discover_Rooms
+          joinChatRoom={joinChatRoom}
+          onClose={() => setShowDiscover_Rooms(false)}
+          onJoin={() => setShowDiscover_Rooms(false)}
+          username={username}
+          roomsSignature={roomsSignature}
+        />
+        {pendingRoomSwitch && (
+          <div className="popup-overlay">
+            <div className="login-form" style={{ maxWidth: '420px' }}>
+              <h2>Switch Room?</h2>
+              <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
+                Are you sure you want to join this room? This will make you leave the previous room.
+              </p>
+              <div className="form-actions">
+                <button className="btn-primary" type="button" onClick={confirmRoomSwitch}>Yes, Join Room</button>
+                <button className="btn-secondary" type="button" onClick={() => setPendingRoomSwitch(null)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <div className="login-container">
-        <div className="top-right-button">
-          <button className="btn-success" onClick={() => setShowRoomForm(true)}>Join Room</button>
-        </div>
+        {/* top-right corner actions removed per request */}
         {!showRoomForm ? (
           <div className="login-form">
             <h2>Join Chat</h2>
@@ -228,27 +320,35 @@ function App() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleLogin} className="login-form">
-            <h2>Join Room</h2>
-            
-            {!username ? (
-              <p style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Joining as <strong>Guest</strong></p>
-            ) : (
-              <p style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Welcome, <strong>{username}</strong>!</p>
-            )}
-
-            <input
-              type="text"
-              placeholder="Enter room name"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
-              required
-            />
+          <div className="login-form">
+            <h2>Welcome{username ? `, ${username}` : ''}!</h2>
+            <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>How would you like to join?</p>
             <div className="form-actions">
-              <button className="btn-primary" type="submit">Join Room</button>
+              <button className="btn-primary" onClick={handleOpenDiscover_Rooms}>Discover Rooms</button>
+              <button className="btn-primary" onClick={() => setShowCreateRoomPopup(true)}>Create a New Room</button>
               <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
             </div>
-          </form>
+          </div>
+        )}
+
+        {showCreateRoomPopup && (
+          <div className="popup-overlay">
+            <form onSubmit={handleLogin} className="login-form">
+              <h2>Create a New Room</h2>
+              <input
+                type="text"
+                placeholder="Enter room name"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                required
+                autoFocus
+              />
+              <div className="form-actions">
+                <button className="btn-primary" type="submit">Join</button>
+                <button className="btn-secondary" type="button" onClick={() => setShowCreateRoomPopup(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     );
@@ -256,7 +356,7 @@ function App() {
 
   return (
     <div className={`chat-container${selectedBackground ? ' background-selected' : ''}`} style={{
-      backgroundColor: selectedBackground ? 'transparent' : backgroundColor,
+      backgroundColor: selectedBackground ? 'transparent' : '#FFFFFF',
       backgroundImage: selectedBackground ? `url(${process.env.PUBLIC_URL}/Backgrounds/${selectedBackground})` : 'none',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
@@ -268,7 +368,10 @@ function App() {
           <p>Welcome, {username}</p>
         </div>
         <div className="chat-header-actions">
-          <button className="btn-secondary change-bg-btn" onClick={toggleBackgroundPicker}>Change Background</button>
+          <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
+            <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
+          </button>
+          <button className="btn-secondary" onClick={handleOpenDiscover_Rooms}>Discover Rooms</button>
           <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
           <button className="btn-success"
             onClick={() => {
