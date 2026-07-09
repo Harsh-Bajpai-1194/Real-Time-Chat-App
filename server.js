@@ -21,6 +21,16 @@ const io = socketIo(server, {
 const filter = new Filter();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+/**
+ * Helper to prevent XSS attacks by escaping HTML special characters.
+ * This converts characters like `<` and `>` into their safe HTML entity equivalents.
+ */
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 mongoose.set('bufferCommands', false);
 mongoose.set('bufferTimeoutMS', 1000);
 
@@ -195,14 +205,17 @@ io.on('connection', (socket) => {
     socket.on('chat message', async (msg, room) => {
         if (!msg.trim() || !room) return;
 
+        // A more robust check for profanity that ignores spaces and special characters.
+        const profanityCheckText = msg.replace(/[^a-zA-Z0-9]/g, '');
+
         // Block the message entirely if it contains profanity
-        if (filter.isProfane(msg)) {
+        if (filter.isProfane(profanityCheckText)) {
             return socket.emit('system message', 'Your message was blocked for containing inappropriate language.');
         }
 
         const messageData = {
             username: socket.username,
-            text: msg,
+            text: escapeHtml(msg), // Sanitize text to prevent XSS attacks
             room: room
         };
 
