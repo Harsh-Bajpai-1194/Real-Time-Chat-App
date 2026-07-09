@@ -59,18 +59,21 @@ const defaultRooms = [
     { name: 'Book Club', desc: 'Share current reads, recommendations, and reviews.', icon: '📚' },
 ];
 
-for (const room of defaultRooms) {
-    roomRegistry.set(room.name, { ...room, members: 0, online: 0 });
-}
-
 const messageSchema = new mongoose.Schema({
     username: String,
     text: String,
     room: String,
     timestamp: { type: Date, default: Date.now }
 });
-
 const Message = mongoose.model('Message', messageSchema);
+
+const roomSchema = new mongoose.Schema({
+    name: { type: String, required: true, unique: true },
+    desc: String,
+    icon: String,
+});
+roomSchema.index({ name: 1 });
+const Room = mongoose.model('Room', roomSchema);
 
 const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
 
@@ -107,6 +110,43 @@ const getRoomHistory = async (room) => {
     return (roomMessages.get(room) || []).slice(-50);
 };
 
+const loadAndSeedRooms = async () => {
+    // Always start with the default rooms in memory to ensure they exist.
+    for (const room of defaultRooms) {
+        roomRegistry.set(room.name, { ...room, members: 0, online: 0 });
+    }
+
+    if (!isMongoAvailable()) {
+        console.warn('MongoDB not available. Using only default in-memory rooms.');
+        return;
+    }
+
+    try {
+        const roomsInDb = await Room.find({});
+        if (roomsInDb.length === 0) {
+            console.log('No rooms found in database. Seeding with default rooms...');
+            // Filter out fields that are not in the schema before inserting
+            const roomsToSeed = defaultRooms.map(({ name, desc, icon }) => ({ name, desc, icon }));
+            await Room.insertMany(roomsToSeed);
+        } else {
+            console.log('Loading custom rooms from database...');
+            for (const dbRoom of roomsInDb) {
+                // Add to registry if it's not a default room already added
+                if (!roomRegistry.has(dbRoom.name)) {
+                    roomRegistry.set(dbRoom.name, {
+                        ...dbRoom.toObject(),
+                        members: 0, // transient state
+                        online: 0,  // transient state
+                    });
+                }
+            }
+        }
+        console.log(`${roomRegistry.size} rooms loaded into registry.`);
+    } catch (error) {
+        console.error('Error loading or seeding rooms:', error.message);
+    }
+};
+
 const connectToDatabase = async () => {
     const candidateUris = [];
     if (process.env.MONGO_URI) {
@@ -123,6 +163,7 @@ const connectToDatabase = async () => {
             });
             mongoReady = true;
             console.log(`MongoDB connected successfully using ${uri}`);
+            await loadAndSeedRooms();
             return;
         } catch (error) {
             console.warn(`MongoDB connection failed for ${uri}: ${error.message}`);
@@ -130,7 +171,8 @@ const connectToDatabase = async () => {
     }
 
     mongoReady = false;
-    console.warn('MongoDB unavailable; the app will use in-memory chat history for this session.');
+    await loadAndSeedRooms(); // Still load default rooms if DB fails
+    console.warn('MongoDB unavailable; the app will use in-memory storage for rooms and chat history for this session.');
 };
 
 mongoose.connection.on('error', (error) => {
@@ -145,22 +187,36 @@ mongoose.connection.on('disconnected', () => {
 
 connectToDatabase();
 
-const ensureRoomExists = (roomName) => {
+const ensureRoomExists = async (roomName) => {
     const trimmed = roomName.trim();
     if (!trimmed) {
         return null;
     }
 
     if (!roomRegistry.has(trimmed)) {
-        roomRegistry.set(trimmed, {
+        const newRoomData = {
             name: trimmed,
             desc: 'A custom chat room.',
             icon: '💬',
+        };
+
+        // Add to in-memory registry first for responsiveness
+        roomRegistry.set(trimmed, {
+            ...newRoomData,
             members: 0,
             online: 0,
         });
-    }
 
+        // Then save to database if available
+        if (isMongoAvailable()) {
+            try {
+                // Use findOneAndUpdate with upsert to prevent race conditions
+                await Room.findOneAndUpdate({ name: trimmed }, { $setOnInsert: newRoomData }, { upsert: true });
+            } catch (error) {
+                console.error(`Error saving new room "${trimmed}" to database:`, error.message);
+            }
+        }
+    }
     return roomRegistry.get(trimmed);
 };
 
@@ -229,7 +285,7 @@ io.on('connection', (socket) => {
     // Handle joining rooms
     socket.on('join room', async (room) => {
         const normalizedRoom = room.trim();
-        ensureRoomExists(normalizedRoom);
+        await ensureRoomExists(normalizedRoom);
         socket.join(normalizedRoom);
         // Announce that a user has joined the room
         io.to(normalizedRoom).emit('system message', `${socket.username || 'Anonymous'} has joined the room.`);
