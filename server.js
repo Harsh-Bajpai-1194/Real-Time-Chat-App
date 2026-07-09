@@ -20,6 +20,7 @@ const io = socketIo(server, {
 
 const filter = new Filter();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'harshbajpai1194@gmail.com';
 
 /**
  * Helper to prevent XSS attacks by escaping HTML special characters.
@@ -81,10 +82,11 @@ const saveMessageToStore = async (messageData) => {
         try {
             const message = new Message(messageData);
             await message.save();
+            return message.toObject(); // Return the saved document
         } catch (error) {
             console.error('Error saving message to database:', error.message);
+            return null;
         }
-        return;
     }
 
     const room = messageData.room;
@@ -94,6 +96,8 @@ const saveMessageToStore = async (messageData) => {
         messages.splice(0, messages.length - 250);
     }
     roomMessages.set(room, messages);
+    // For in-memory, we don't have a real DB ID, so we can fake one for consistency
+    return { ...messageData, _id: new mongoose.Types.ObjectId().toString() };
 };
 
 const getRoomHistory = async (room) => {
@@ -246,9 +250,10 @@ io.on('connection', (socket) => {
     console.log('A user connected');
     
     // Ask for username when connecting
-    socket.on('set username', (name, room) => {
+    socket.on('set username', (name, room, email) => {
         username = name.trim() || 'Anonymous';
         socket.username = username; // Store username on the socket instance
+        if (email) socket.email = email;
     });
     
     // Typing indicator
@@ -271,14 +276,17 @@ io.on('connection', (socket) => {
         const messageData = {
             username: socket.username,
             text: escapeHtml(msg), // Sanitize text to prevent XSS attacks
-            room: room
+            room: room,
+            timestamp: new Date()
         };
 
-        // 1. Broadcast message to the room IMMEDIATELY for a real-time feel
-        io.to(room).emit('chat message', messageData);
+        // Save message to the store first to get a persistent ID
+        const savedMessage = await saveMessageToStore(messageData);
 
-        // 2. Save message to the active store (MongoDB or in-memory fallback)
-        await saveMessageToStore(messageData);
+        // If saving was successful, broadcast the full message data (including ID)
+        if (savedMessage) {
+            io.to(room).emit('chat message', savedMessage);
+        }
     });
 
     // Handle joining rooms
@@ -301,6 +309,21 @@ io.on('connection', (socket) => {
         io.to(room).emit('system message', `${socket.username || 'Anonymous'} has left the room.`);
     });
 
+    socket.on('delete message', async (messageId, room) => {
+        if (socket.email !== ADMIN_EMAIL) {
+            return socket.emit('system message', 'You are not authorized to delete messages.');
+        }
+
+        try {
+            const result = await Message.findByIdAndDelete(messageId);
+            if (result) {
+                io.to(room).emit('message deleted', messageId);
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            socket.emit('system message', 'Error deleting message.');
+        }
+    });
     // Handle disconnect
     socket.on('disconnect', () => {
         console.log('User disconnected');

@@ -6,6 +6,7 @@ import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
 import DiscoverRooms from './DiscoverRooms';
+import Admin from './Admin';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -17,6 +18,8 @@ const getFormattedTime = (timestamp) => {
 function App() {
   const [username, setUsername] = useState('');
   const [room, setRoom] = useState('');
+  const [email, setEmail] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -45,6 +48,7 @@ function App() {
   const [showDiscoverRooms, setShowDiscoverRooms] = useState(false);
   const [showCreateRoomPopup, setShowCreateRoomPopup] = useState(false);
   const [pendingRoomSwitch, setPendingRoomSwitch] = useState(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [roomsSignature, setRoomsSignature] = useState(Date.now());
 
   const toggleBackgroundPicker = () => {
@@ -80,14 +84,16 @@ function App() {
   useEffect(() => {
     const savedSession = localStorage.getItem('chatSession');
     if (savedSession) {
-      const { name, room: savedRoom } = JSON.parse(savedSession);
+      const { name, room: savedRoom, email: savedEmail } = JSON.parse(savedSession);
       if (name && savedRoom) {
         setUsername(name);
         setRoom(savedRoom);
+        if (savedEmail) setEmail(savedEmail);
+        if (savedEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
         setIsLoggedIn(true);
         // By setting pendingJoinRef, the socket useEffect will handle joining the room
         // once the connection is established.
-        pendingJoinRef.current = { room: savedRoom, username: name };
+        pendingJoinRef.current = { room: savedRoom, username: name, email: savedEmail };
       }
     }
   }, []); // Run only on initial mount
@@ -105,8 +111,8 @@ function App() {
     const handleConnect = () => {
       const pendingJoin = pendingJoinRef.current;
       if (pendingJoin) {
-        newSocket.emit('set username', pendingJoin.username, pendingJoin.room);
         newSocket.emit('join room', pendingJoin.room);
+        newSocket.emit('set username', pendingJoin.username, pendingJoin.room, pendingJoin.email);
       }
     };
 
@@ -132,11 +138,16 @@ function App() {
       setRoomsSignature(Date.now());
     };
 
+    const handleMessageDeleted = (messageId) => {
+      setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
+    };
+
     newSocket.on('connect', handleConnect);
     newSocket.on('chat message', handleChatMessage);
     newSocket.on('system message', handleSystemMessage);
     newSocket.on('chat history', handleChatHistory);
     newSocket.on('rooms updated', handleRoomsUpdated);
+    newSocket.on('message deleted', handleMessageDeleted);
     
 
       newSocket.on("typing", (username) => {
@@ -157,13 +168,14 @@ function App() {
       newSocket.off('system message', handleSystemMessage);
       newSocket.off('chat history', handleChatHistory);
       newSocket.off("typing");
+      newSocket.off('message deleted', handleMessageDeleted);
       newSocket.off('rooms updated', handleRoomsUpdated);
       newSocket.disconnect();
       socketRef.current = null;
     };
   }, []);
 
-  const joinChatRoom = (roomName, selectedUsername) => {
+  const joinChatRoom = (roomName, selectedUsername, userEmail = '') => {
     const socket = socketRef.current;
     const nextRoom = roomName.trim();
     const nextUsername = selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
@@ -174,21 +186,22 @@ function App() {
       return 'confirm';
     }
 
-    pendingJoinRef.current = { room: nextRoom, username: nextUsername };
+    pendingJoinRef.current = { room: nextRoom, username: nextUsername, email: userEmail };
     setRoom(nextRoom);
     roomRef.current = nextRoom; // Manually update ref to prevent race condition
 
     if (socket?.connected) {
-      socket.emit('set username', nextUsername, nextRoom);
       socket.emit('join room', nextRoom);
+      socket.emit('set username', nextUsername, nextRoom, userEmail);
     } else {
       setMessages((prevMessages) => [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime() }]);
     }
 
     setUsername(nextUsername);
+    if (userEmail) setEmail(userEmail);
 
     // Save session to localStorage
-    const sessionData = { name: nextUsername, room: nextRoom };
+    const sessionData = { name: nextUsername, room: nextRoom, email: userEmail };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     setIsLoggedIn(true);
     return 'joined';
@@ -202,6 +215,7 @@ function App() {
     const socket = socketRef.current;
     const nextRoom = pendingRoomSwitch.roomName.trim();
     const nextUsername = pendingRoomSwitch.selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    const userEmail = email; // Preserve email from previous session
 
     if (socket?.connected && room) {
       socket.emit('leave room', room);
@@ -209,20 +223,21 @@ function App() {
 
     // Clear messages immediately and update room state
     setRoom(nextRoom);
-    roomRef.current = nextRoom; // Manually update ref to prevent race condition
-    pendingJoinRef.current = { room: nextRoom, username: nextUsername };
+    roomRef.current = nextRoom;
+    pendingJoinRef.current = { room: nextRoom, username: nextUsername, email: userEmail };
     setUsername(nextUsername);
     setPendingRoomSwitch(null);
 
     if (socket?.connected) {
-      socket.emit('set username', nextUsername, nextRoom);
       socket.emit('join room', nextRoom);
+      socket.emit('set username', nextUsername, nextRoom, userEmail);
     } else {
       setMessages((prevMessages) => [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime() }]);
     }
 
-    const sessionData = { name: nextUsername, room: nextRoom };
+    const sessionData = { name: nextUsername, room: nextRoom, email: userEmail };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
+    if (userEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
     setShowDiscoverRooms(false);
     setIsLoggedIn(true);
   };
@@ -230,7 +245,7 @@ function App() {
   const handleLogin = (e) => {
     e.preventDefault();
     if (room.trim()) {
-      joinChatRoom(room, username);
+      joinChatRoom(room, username, email);
       setIsLoggedIn(true);
     }
   };
@@ -255,6 +270,10 @@ function App() {
 
   const handleGoogleSignIn = (user) => {
     setUsername(user.name);
+    setEmail(user.email);
+    if (user.email === 'harshbajpai1194@gmail.com') {
+      setIsAdmin(true);
+    }
     setShowRoomForm(true); // Move to the next step automatically
   };
 
@@ -266,6 +285,8 @@ function App() {
     pendingJoinRef.current = null;
     setIsLoggedIn(false);
     setRoom('');
+    setEmail('');
+    setIsAdmin(false);
     // Clear the session from storage
     localStorage.removeItem('chatSession');
   };
@@ -278,7 +299,7 @@ function App() {
     return (
       <>
         <DiscoverRooms
-          joinChatRoom={joinChatRoom}
+          joinChatRoom={(roomName, uname) => joinChatRoom(roomName, uname, email)}
           onClose={() => setShowDiscoverRooms(false)}
           onJoin={() => setShowDiscoverRooms(false)}
           username={username}
@@ -371,6 +392,9 @@ function App() {
           <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
             <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
           </button>
+          {isAdmin && (
+            <button className="btn-primary" onClick={() => setShowAdminPanel(true)}>Admin Panel</button>
+          )}
           <button className="btn-secondary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
           <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
           <button className="btn-success"
@@ -398,9 +422,13 @@ function App() {
         </div>
       )}
 
+      {isAdmin && showAdminPanel && (
+        <Admin socket={socketRef.current} onClose={() => setShowAdminPanel(false)} />
+      )}
+
       <main className="chat-messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message-item ${msg.type === 'system' ? 'system' : ''}`}>
+        {messages.map((msg) => (
+          <div key={msg._id || msg.time + msg.text} className={`message-item ${msg.type === 'system' ? 'system' : ''}`}>
             {msg.type === 'chat' && <span className="username">{msg.username}:</span>}
             <span className="text">{msg.text}</span>
             <span className="timestamp">{msg.time}</span>
