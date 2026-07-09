@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
-import Discover_Rooms from './Discover_Rooms';
+import DiscoverRooms from './DiscoverRooms';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -42,7 +42,7 @@ function App() {
   ];
   const [selectedBackground, setSelectedBackground] = useState('');
   const [typingUser, setTypingUser] = useState('');
-  const [showDiscover_Rooms, setShowDiscover_Rooms] = useState(false);
+  const [showDiscoverRooms, setShowDiscoverRooms] = useState(false);
   const [showCreateRoomPopup, setShowCreateRoomPopup] = useState(false);
   const [pendingRoomSwitch, setPendingRoomSwitch] = useState(null);
   const [roomsSignature, setRoomsSignature] = useState(Date.now());
@@ -223,7 +223,7 @@ function App() {
 
     const sessionData = { name: nextUsername, room: nextRoom };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
-    setShowDiscover_Rooms(false);
+    setShowDiscoverRooms(false);
     setIsLoggedIn(true);
   };
 
@@ -270,17 +270,17 @@ function App() {
     localStorage.removeItem('chatSession');
   };
 
-  const handleOpenDiscover_Rooms = () => {
-    setShowDiscover_Rooms(true);
+  const handleOpenDiscoverRooms = () => {
+    setShowDiscoverRooms(true);
   };
 
-  if (showDiscover_Rooms) {
+  if (showDiscoverRooms) {
     return (
       <>
-        <Discover_Rooms
+        <DiscoverRooms
           joinChatRoom={joinChatRoom}
-          onClose={() => setShowDiscover_Rooms(false)}
-          onJoin={() => setShowDiscover_Rooms(false)}
+          onClose={() => setShowDiscoverRooms(false)}
+          onJoin={() => setShowDiscoverRooms(false)}
           username={username}
           roomsSignature={roomsSignature}
         />
@@ -324,7 +324,7 @@ function App() {
             <h2>Welcome{username ? `, ${username}` : ''}!</h2>
             <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>How would you like to join?</p>
             <div className="form-actions">
-              <button className="btn-primary" onClick={handleOpenDiscover_Rooms}>Discover Rooms</button>
+              <button className="btn-primary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
               <button className="btn-primary" onClick={() => setShowCreateRoomPopup(true)}>Create a New Room</button>
               <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
             </div>
@@ -371,7 +371,7 @@ function App() {
           <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
             <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
           </button>
-          <button className="btn-secondary" onClick={handleOpenDiscover_Rooms}>Discover Rooms</button>
+          <button className="btn-secondary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
           <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
           <button className="btn-success"
             onClick={() => {

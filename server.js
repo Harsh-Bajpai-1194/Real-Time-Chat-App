@@ -72,7 +72,6 @@ const roomSchema = new mongoose.Schema({
     desc: String,
     icon: String,
 });
-roomSchema.index({ name: 1 });
 const Room = mongoose.model('Room', roomSchema);
 
 const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
