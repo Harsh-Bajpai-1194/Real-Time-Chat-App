@@ -6,6 +6,7 @@ import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
 import DiscoverRooms from './DiscoverRooms';
+import Admin from './Admin';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -276,6 +277,13 @@ function App() {
     setShowRoomForm(true); // Move to the next step automatically
   };
 
+  const handleDeleteMessage = (messageId) => {
+    const socket = socketRef.current;
+    if (socket?.connected) {
+      socket.emit('delete message', messageId, room);
+    }
+  };
+
   const handleLeaveRoom = () => {
     const socket = socketRef.current;
     if (socket?.connected) {
@@ -431,6 +439,11 @@ function App() {
             {msg.type === 'chat' && <span className="username">{msg.username}:</span>}
             <span className="text">{msg.text}</span>
             <span className="timestamp">{msg.time}</span>
+            {isAdmin && msg.type === 'chat' && (
+              <button onClick={() => handleDeleteMessage(msg._id)} className="delete-btn" title="Delete message">
+                🗑️
+              </button>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
