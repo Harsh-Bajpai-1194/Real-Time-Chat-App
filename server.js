@@ -21,18 +21,32 @@ const io = socketIo(server, {
 const filter = new Filter();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+mongoose.set('bufferCommands', false);
+mongoose.set('bufferTimeoutMS', 1000);
+
 app.use(cors()); // Add this line to enable CORS for all HTTP routes
 app.use(express.json()); 
 
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/realtime-chat';
+let mongoReady = false;
+const roomMessages = new Map();
+const roomRegistry = new Map();
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('MongoDB connected successfully.'))
-    .catch(err => console.error('MongoDB connection error:', err));
+const defaultRooms = [
+    { name: 'Tech Talk', desc: 'Discuss latest tech trends, programming, gadgets.', icon: '💻' },
+    { name: 'Gaming Lair', desc: 'Community for gamers, share tips, find teammates.', icon: '🎮' },
+    { name: 'Open Discussions', desc: 'General chat for everyone on various topics.', icon: '🗣️' },
+    { name: 'Creative Corner', desc: 'Showcase art, design projects, and get feedback.', icon: '🎨' },
+    { name: 'Movie Buffs', desc: 'Talking about films, series, and reviews.', icon: '🍿' },
+    { name: 'Book Club', desc: 'Share current reads, recommendations, and reviews.', icon: '📚' },
+];
 
-// --- Message Schema and Model ---
+for (const room of defaultRooms) {
+    roomRegistry.set(room.name, { ...room, members: 0, online: 0 });
+}
+
 const messageSchema = new mongoose.Schema({
     username: String,
     text: String,
@@ -41,6 +55,103 @@ const messageSchema = new mongoose.Schema({
 });
 
 const Message = mongoose.model('Message', messageSchema);
+
+const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
+
+const saveMessageToStore = async (messageData) => {
+    if (isMongoAvailable()) {
+        try {
+            const message = new Message(messageData);
+            await message.save();
+        } catch (error) {
+            console.error('Error saving message to database:', error.message);
+        }
+        return;
+    }
+
+    const room = messageData.room;
+    const messages = roomMessages.get(room) || [];
+    messages.push({ ...messageData, timestamp: messageData.timestamp || new Date() });
+    if (messages.length > 250) {
+        messages.splice(0, messages.length - 250);
+    }
+    roomMessages.set(room, messages);
+};
+
+const getRoomHistory = async (room) => {
+    if (isMongoAvailable()) {
+        try {
+            const history = await Message.find({ room }).sort({ timestamp: -1 }).limit(50);
+            return history.reverse();
+        } catch (error) {
+            console.error('Error fetching chat history:', error.message);
+        }
+    }
+
+    return (roomMessages.get(room) || []).slice(-50);
+};
+
+const connectToDatabase = async () => {
+    const candidateUris = [];
+    if (process.env.MONGO_URI) {
+        candidateUris.push(process.env.MONGO_URI);
+    }
+    candidateUris.push('mongodb://127.0.0.1:27017/realtime-chat');
+
+    for (const uri of candidateUris) {
+        try {
+            await mongoose.connect(uri, {
+                serverSelectionTimeoutMS: 4000,
+                socketTimeoutMS: 4000,
+                family: 4,
+            });
+            mongoReady = true;
+            console.log(`MongoDB connected successfully using ${uri}`);
+            return;
+        } catch (error) {
+            console.warn(`MongoDB connection failed for ${uri}: ${error.message}`);
+        }
+    }
+
+    mongoReady = false;
+    console.warn('MongoDB unavailable; the app will use in-memory chat history for this session.');
+};
+
+mongoose.connection.on('error', (error) => {
+    mongoReady = false;
+    console.warn(`MongoDB connection error: ${error.message}`);
+});
+
+mongoose.connection.on('disconnected', () => {
+    mongoReady = false;
+    console.warn('MongoDB disconnected; using in-memory fallback for chat history.');
+});
+
+connectToDatabase();
+
+const ensureRoomExists = (roomName) => {
+    const trimmed = roomName.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (!roomRegistry.has(trimmed)) {
+        roomRegistry.set(trimmed, {
+            name: trimmed,
+            desc: 'A custom chat room.',
+            icon: '💬',
+            members: 0,
+            online: 0,
+        });
+    }
+
+    return roomRegistry.get(trimmed);
+};
+
+app.get('/api/rooms', (req, res) => {
+    const rooms = Array.from(roomRegistry.values()).sort((a, b) => a.name.localeCompare(b.name));
+    res.json(rooms);
+});
 
 // --- Authentication Routes ---
 app.post('/api/auth/google', async (req, res) => {
@@ -92,28 +203,22 @@ io.on('connection', (socket) => {
         // 1. Broadcast message to the room IMMEDIATELY for a real-time feel
         io.to(room).emit('chat message', messageData);
 
-        // 2. Save message to database in the background
-        try {
-            const message = new Message(messageData);
-            await message.save();
-        } catch (error) {
-            console.error('Error saving message to database:', error);
-        }
+        // 2. Save message to the active store (MongoDB or in-memory fallback)
+        await saveMessageToStore(messageData);
     });
 
     // Handle joining rooms
     socket.on('join room', async (room) => {
-        socket.join(room);
+        const normalizedRoom = room.trim();
+        ensureRoomExists(normalizedRoom);
+        socket.join(normalizedRoom);
         // Announce that a user has joined the room
-        io.to(room).emit('system message', `${socket.username || 'Anonymous'} has joined the room.`);
+        io.to(normalizedRoom).emit('system message', `${socket.username || 'Anonymous'} has joined the room.`);
+        io.emit('rooms updated');
 
         // Send recent chat history to the newly joined user
-        try {
-            const history = await Message.find({ room: room }).sort({ timestamp: -1 }).limit(50);
-            socket.emit('chat history', history.reverse());
-        } catch (error) {
-            console.error('Error fetching chat history:', error);
-        }
+        const history = await getRoomHistory(normalizedRoom);
+        socket.emit('chat history', history, normalizedRoom);
     });
 
     // Handle leaving rooms

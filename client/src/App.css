@@ -22,11 +22,6 @@ body {
   position: relative;
 }
 
-.top-right-button {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-}
 
 .login-form {
   background: white;
@@ -47,21 +42,28 @@ body {
   background-color: transparent;
 }
 
-/* Position the new button in the header action row */
 .change-bg-btn {
-  margin-right: 10px;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #f0f0f0;
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  font-weight: bold;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
 }
 
 .change-bg-btn:hover {
-  background-color: #e0e0e0;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
+.change-bg-btn img {
+  width: 40px;
+  height: 40px;
+}
 .login-form h2 {
   margin-top: 0;
   text-align: center;
@@ -333,10 +335,117 @@ button:active {
   }
 }
 
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-overlay .login-form {
+  animation: popup-fade-in 0.3s ease-out;
+}
+
+@keyframes popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .typing-indicator {
   margin: 6px 12px;
   color: #666;
   font-size: 14px;
   font-style: italic;
   min-height: 20px;
+}
+
+/* Dashboard styles */
+.dashboard-container {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dashboard-header h2 {
+  margin: 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-actions input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.room-card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.room-card-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.room-icon {
+  font-size: 28px;
+}
+
+.room-meta h3 {
+  margin: 0 0 6px 0;
+  font-size: 1.05rem;
+}
+
+.room-desc {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.room-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.room-stats {
+  color: #777;
+  font-size: 0.85rem;
 }
