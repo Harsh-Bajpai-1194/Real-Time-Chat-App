@@ -4,12 +4,6 @@
   "description": "A simple real-time chat application with Node.js, Express, and Socket.IO.",
   "main": "server.js",
   "scripts": {
-    "start": "cross-env HOST=0.0.0.0 react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "scripts": {
     "start": "node server.js",
     "server": "nodemon server.js",
     "client": "pnpm --prefix client start",
