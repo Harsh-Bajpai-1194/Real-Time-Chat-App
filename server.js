@@ -73,6 +73,29 @@ const roomSchema = new mongoose.Schema({
     desc: String,
     icon: String,
 });
+
+// When a room is deleted from the database (e.g., via findOneAndDelete),
+// this middleware will trigger to also remove all associated messages.
+roomSchema.post('findOneAndDelete', async function (doc) {
+    if (doc) {
+        const roomName = doc.name;
+
+        // Also remove from our in-memory caches to keep things consistent
+        roomRegistry.delete(roomName);
+        roomMessages.delete(roomName);
+        console.log(`Removed room "${roomName}" from in-memory stores.`);
+
+        if (isMongoAvailable()) {
+            console.log(`Deleting messages for room: "${roomName}"`);
+            try {
+                await Message.deleteMany({ room: roomName });
+            } catch (error) {
+                console.error(`Error deleting messages for room "${roomName}":`, error);
+            }
+        }
+        io.emit('rooms updated'); // Notify clients that the room list has changed
+    }
+});
 const Room = mongoose.model('Room', roomSchema);
 
 const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
