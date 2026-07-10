@@ -4,7 +4,7 @@ const Admin = ({ socket, onClose }) => {
   return (
     <div className="popup-overlay">
       <div className="login-form" style={{ maxWidth: '500px' }}>
-        <h2>Admin Panel</h2>
+        <h2>🔒</h2>
         <p>Admin controls would be here.</p>
         <p>For example, you could list users or messages to manage.</p>
         <div className="form-actions">

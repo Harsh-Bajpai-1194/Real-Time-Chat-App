@@ -1,0 +1,121 @@
+.discover-rooms-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.discover-rooms-container {
+  background: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.discover-rooms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 25px;
+  border-bottom: 1px solid #eee;
+}
+
+.discover-rooms-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #888;
+  padding: 0;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.discover-rooms-list {
+  overflow-y: auto;
+  padding: 20px;
+  flex-grow: 1;
+}
+
+.room-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  background: #f9f9f9;
+  margin-bottom: 15px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.room-card:hover {
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+.room-icon {
+  font-size: 2.5rem;
+}
+
+.room-details h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+}
+
+.room-details p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.room-stats {
+  display: flex;
+  gap: 20px;
+  text-align: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.stat-item strong {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.stat-item span {
+  font-size: 0.8rem;
+  color: #777;
+  text-transform: uppercase;
+}
+
+.room-actions {
+  text-align: right;
+}
+
+.error-message {
+  color: #d9534f;
+  text-align: center;
+}

@@ -139,7 +139,7 @@ const getRoomHistory = async (room) => {
 const loadAndSeedRooms = async () => {
     // Always start with the default rooms in memory to ensure they exist.
     for (const room of defaultRooms) {
-        roomRegistry.set(room.name, { ...room, members: 0, online: 0 });
+        roomRegistry.set(room.name, { ...room });
     }
 
     if (!isMongoAvailable()) {
@@ -159,11 +159,7 @@ const loadAndSeedRooms = async () => {
             for (const dbRoom of roomsInDb) {
                 // Add to registry if it's not a default room already added
                 if (!roomRegistry.has(dbRoom.name)) {
-                    roomRegistry.set(dbRoom.name, {
-                        ...dbRoom.toObject(),
-                        members: 0, // transient state
-                        online: 0,  // transient state
-                    });
+                    roomRegistry.set(dbRoom.name, { ...dbRoom.toObject() });
                 }
             }
         }
@@ -227,11 +223,7 @@ const ensureRoomExists = async (roomName) => {
         };
 
         // Add to in-memory registry first for responsiveness
-        roomRegistry.set(trimmed, {
-            ...newRoomData,
-            members: 0,
-            online: 0,
-        });
+        roomRegistry.set(trimmed, { ...newRoomData });
 
         // Then save to database if available
         if (isMongoAvailable()) {
@@ -246,9 +238,51 @@ const ensureRoomExists = async (roomName) => {
     return roomRegistry.get(trimmed);
 };
 
-app.get('/api/rooms', (req, res) => {
-    const rooms = Array.from(roomRegistry.values()).sort((a, b) => a.name.localeCompare(b.name));
-    res.json(rooms);
+app.get('/api/rooms', async (req, res) => {
+    const roomsFromRegistry = Array.from(roomRegistry.values());
+
+    if (!isMongoAvailable()) {
+        const rooms = roomsFromRegistry.map(room => {
+            const messages = roomMessages.get(room.name) || [];
+            const totalMessages = messages.length;
+            const memberCount = new Set(messages.map(m => m.username)).size;
+            return { ...room, memberCount, totalMessages };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+        return res.json(rooms);
+    }
+
+    try {
+        const stats = await Message.aggregate([
+            {
+                $group: {
+                    _id: '$room',
+                    totalMessages: { $sum: 1 },
+                    uniqueUsers: { $addToSet: '$username' }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$_id',
+                    totalMessages: 1,
+                    memberCount: { $size: '$uniqueUsers' }
+                }
+            }
+        ]);
+
+        const statsMap = new Map(stats.map(stat => [stat.name, stat]));
+
+        const rooms = roomsFromRegistry.map(room => {
+            const roomStats = statsMap.get(room.name) || { memberCount: 0, totalMessages: 0 };
+            return { ...room, memberCount: roomStats.memberCount, totalMessages: roomStats.totalMessages };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        res.json(rooms);
+    } catch (error) {
+        console.error('Error fetching room stats:', error);
+        const rooms = roomsFromRegistry.map(r => ({ ...r, memberCount: 0, totalMessages: 0 })).sort((a, b) => a.name.localeCompare(b.name));
+        res.status(500).json(rooms);
+    }
 });
 
 // --- Authentication Routes ---

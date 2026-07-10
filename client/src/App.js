@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
-import DiscoverRooms from './DiscoverRooms';
+import DiscoverRooms from './DiscoverRooms.jsx';
 import Admin from './Admin';
 
 const getFormattedTime = (timestamp) => {
