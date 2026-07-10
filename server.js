@@ -292,6 +292,14 @@ io.on('connection', (socket) => {
     // Handle joining rooms
     socket.on('join room', async (room) => {
         const normalizedRoom = room.trim();
+
+        if (!normalizedRoom) {
+            return;
+        }
+        if (filter.isProfane(normalizedRoom.replace(/[^a-zA-Z0-9]/g, ''))) {
+            return socket.emit('system message', 'This room name is not allowed due to inappropriate language.');
+        }
+
         await ensureRoomExists(normalizedRoom);
         socket.join(normalizedRoom);
         // Announce that a user has joined the room
