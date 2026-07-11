@@ -61,12 +61,6 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
 ┃ ┃ ┣ 📜package.json    # Project dependencies
 ┃ ┃ ┣ 📜pnpm-lock.yaml  # PNPM lock file
 ┃ ┃ ┣ 📜pnpm-workspace.yaml # Workspace config
-┣ 📂static/             # Server static files
-┃ ┣ 📜server.js         # Backend entry
-┣ 📂templates/          # HTML templates
-┃ ┣ 📜client.js         # Client script
-┃ ┣ 📜index.html        # Landing page
-┃ ┣ 📜style.css         # Page styling
 ┣ 📜.env                # Environment and Secret Variables File
 ┣ 📜.gitignore          # Global ignore rules
 ┣ 📜CONTRIBUTING.md     # Guidelines
