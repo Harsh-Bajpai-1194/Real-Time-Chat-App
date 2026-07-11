@@ -62,6 +62,8 @@ const defaultRooms = [
 
 const messageSchema = new mongoose.Schema({
     username: String,
+    email: String,
+    picture: String,
     text: String,
     room: String,
     timestamp: { type: Date, default: Date.now }
@@ -134,6 +136,32 @@ const getRoomHistory = async (room) => {
     }
 
     return (roomMessages.get(room) || []).slice(-50);
+};
+
+const getOlderRoomHistory = async (room, lastMessageId) => {
+    if (!lastMessageId) return [];
+
+    if (isMongoAvailable()) {
+        try {
+            const lastMessage = await Message.findById(lastMessageId);
+            if (!lastMessage) return [];
+
+            const olderMessages = await Message.find({
+                room,
+                timestamp: { $lt: lastMessage.timestamp }
+            }).sort({ timestamp: -1 }).limit(50);
+
+            return olderMessages.reverse();
+        } catch (error) {
+            console.error('Error fetching older messages:', error.message);
+            return [];
+        }
+    }
+
+    const allMessages = roomMessages.get(room) || [];
+    const index = allMessages.findIndex((m) => m._id === lastMessageId);
+    if (index === -1) return [];
+    return allMessages.slice(Math.max(0, index - 50), index);
 };
 
 const loadAndSeedRooms = async () => {
@@ -307,10 +335,11 @@ io.on('connection', (socket) => {
     console.log('A user connected');
     
     // Ask for username when connecting
-    socket.on('set username', (name, room, email) => {
+    socket.on('set username', (name, room, email, picture) => {
         username = name.trim() || 'Anonymous';
         socket.username = username; // Store username on the socket instance
         if (email) socket.email = email;
+        if (picture) socket.picture = picture;
     });
     
     // Typing indicator
@@ -332,6 +361,8 @@ io.on('connection', (socket) => {
 
         const messageData = {
             username: socket.username,
+            email: socket.email || '',
+            picture: socket.picture || '',
             text: escapeHtml(msg), // Sanitize text to prevent XSS attacks
             room: room,
             timestamp: new Date()
@@ -366,6 +397,20 @@ io.on('connection', (socket) => {
         // Send recent chat history to the newly joined user
         const history = await getRoomHistory(normalizedRoom);
         socket.emit('chat history', history, normalizedRoom);
+    });
+
+    socket.on('fetch older messages', async ({ room, lastMessageId }) => {
+        if (!room || !lastMessageId) {
+            return;
+        }
+
+        const normalizedRoom = room.trim();
+        if (!normalizedRoom) {
+            return;
+        }
+
+        const olderMessages = await getOlderRoomHistory(normalizedRoom, lastMessageId);
+        socket.emit('older messages', olderMessages, normalizedRoom);
     });
 
     // Handle leaving rooms

@@ -1,4 +1,4 @@
-# Real-Time Chat App v1.2.8
+# Real-Time Chat App v1.2.9
 
 A simple real-time chat application with **Node.js**, **Express**, and **Socket.IO**.
 

@@ -98,6 +98,22 @@ button:active {
   opacity: 0.8;
 }
 
+.release-link-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.release-link {
+  display: inline-flex;
+}
+
+.release-badge {
+  width: auto;
+  max-width: 100%;
+  display: block;
+}
+
 .btn-primary {
   background-color: #007bff;
   color: white;
@@ -217,12 +233,25 @@ button:active {
 }
 
 .message-item {
-  padding: 8px 12px;
-  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
   background-color: #e2f0fd;
-  align-self: flex-start;
   max-width: 85%;
   word-wrap: break-word;
+}
+
+.message-item.own-message {
+  align-self: flex-end;
+  background-color: #dcf8c6;
+  justify-content: flex-start;
+}
+
+.message-item.other-message {
+  align-self: flex-start;
+  background-color: #ffffff;
 }
 
 .message-item.system {
@@ -231,11 +260,34 @@ button:active {
   font-size: 0.85rem;
   align-self: center;
   font-style: italic;
+  justify-content: center;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(0, 123, 255, 0.16);
+}
+
+.message-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .username {
-  font-weight: bold;
-  margin-right: 5px;
+  font-weight: 700;
 }
 
 .timestamp {
@@ -251,6 +303,11 @@ button:active {
   background-color: white;
   position: relative;
   align-items: center;
+}
+
+.loading-older-messages {
+  font-size: 0.95rem;
+  color: #555;
 }
 
 .message-form input {
