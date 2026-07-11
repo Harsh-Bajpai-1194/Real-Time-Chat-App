@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:7777' : '');
+
 const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,7 +12,7 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
     const fetchRooms = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/rooms');
+        const response = await fetch(`${API_BASE_URL}/api/rooms`);
         if (!response.ok) {
           throw new Error('Failed to fetch rooms');
         }
@@ -65,6 +67,9 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
               <div className="room-actions">
                 <button className="btn-primary" onClick={() => handleJoinRoom(room.name)}>
                   Join Room
+                </button>
+                <button className="settings-button" type="button" title="Room settings">
+                  ⚙️
                 </button>
               </div>
             </div>

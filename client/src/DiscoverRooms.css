@@ -57,7 +57,7 @@
 
 .room-card {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 20px;
   padding: 15px;
@@ -69,7 +69,40 @@
 }
 
 .room-card:hover {
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+.room-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 74px;
+}
+
+.room-actions button {
+  width: 100%;
+}
+
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #e9ecef;
+  color: #333;
+  cursor: pointer;
+  font-size: 1.05rem;
+  margin-top: 8px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.settings-button:hover {
+  background: #dee2e6;
+  transform: translateY(-1px);
 }
 
 .room-icon {
