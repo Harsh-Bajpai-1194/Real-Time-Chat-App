@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:7777' : '');
-
 const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,12 +10,15 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
     const fetchRooms = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/rooms`);
+        // Use a relative path for the API request.
+        // In development, this will be proxied to the backend server as configured in client/package.json.
+        const response = await fetch('/api/rooms');
         if (!response.ok) {
           throw new Error('Failed to fetch rooms');
         }
         const data = await response.json();
-        setRooms(data);
+        // Sort rooms by the number of messages in descending order
+        setRooms(data.sort((a, b) => b.totalMessages - a.totalMessages));
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -68,9 +69,14 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
                 <button className="btn-primary" onClick={() => handleJoinRoom(room.name)}>
                   Join Room
                 </button>
-                <button className="settings-button" type="button" title="Room settings">
-                  ⚙️
-                </button>
+                <div className="room-sub-actions">
+                  <button className="participants-button" type="button" title="View participants">
+                    <img src={`${process.env.PUBLIC_URL}/participants.png`} alt="View participants" />
+                  </button>
+                  <button className="settings-button" type="button" title="Room settings">
+                    <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Room settings" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

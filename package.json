@@ -1,28 +1,17 @@
 {
   "name": "real-time-chat-app",
   "version": "1.0.0",
-  "description": "A simple real-time chat application with Node.js, Express, and Socket.IO.",
-  "main": "server.js",
+  "description": "Workspace scripts for the Real-Time Chat App.",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon server.js",
-    "client": "pnpm --prefix client start",
-    "dev": "concurrently \"pnpm run server\" \"pnpm run client\""
+    "start": "npm run server",
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client start",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "license": "MIT",
-  "dependencies": {
-    "bad-words": "3.0.4",
-    "dotenv": "^16.4.5",
-    "cors": "^2.8.6",
-    "express": "^4.22.2",
-    "google-auth-library": "^10.6.2",
-    "jwt-decode": "^4.0.0",
-    "mongoose": "^8.5.1",
-    "socket.io": "^4.7.5"
-  },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "cross-env": "^10.1.0",
     "nodemon": "^3.1.4"
   }
 }

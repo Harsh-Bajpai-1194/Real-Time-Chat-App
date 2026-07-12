@@ -229,7 +229,6 @@ button:active {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background-color: #fafafa;
 }
 
 .message-item {
@@ -238,13 +237,11 @@ button:active {
   gap: 10px;
   padding: 10px;
   border-radius: 18px;
-  background-color: #e2f0fd;
-  max-width: 85%;
   word-wrap: break-word;
+  flex-grow: 1;
 }
 
 .message-item.own-message {
-  align-self: flex-end;
   background-color: #dcf8c6;
   justify-content: flex-start;
 }
@@ -254,13 +251,25 @@ button:active {
   background-color: #ffffff;
 }
 
+.message-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.message-wrapper.own-message-wrapper {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
 .message-item.system {
   background-color: transparent;
   color: #888;
   font-size: 0.85rem;
   align-self: center;
   font-style: italic;
-  justify-content: center;
 }
 
 .avatar {
@@ -426,6 +435,24 @@ button:active {
   font-size: 14px;
   font-style: italic;
   min-height: 20px;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  color: #ff4d4d;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.delete-btn:hover {
+  background-color: #ff4d4d;
+  color: #fff;
 }
 
 /* Dashboard styles */
