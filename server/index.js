@@ -1,14 +1,18 @@
 const express = require('express');
-require('dotenv').config(); // Load environment variables from .env file
 const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
+
+// Load environment variables from the .env file in the project root
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const fs = require('fs');
 const Filter = require('bad-words');
 const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
 
+const Room = require('./models/Room');
+const Message = require('./models/Message');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -60,45 +64,17 @@ const defaultRooms = [
     { name: 'Book Club', desc: 'Share current reads, recommendations, and reviews.', icon: '📚' },
 ];
 
-const messageSchema = new mongoose.Schema({
-    username: String,
-    email: String,
-    picture: String,
-    text: String,
-    room: String,
-    timestamp: { type: Date, default: Date.now }
+// Listen for the 'roomDeleted' event emitted from the Room model's middleware.
+// This decouples the database logic from the server's runtime state.
+Room.on('roomDeleted', (roomName) => {
+    // Also remove from our in-memory caches to keep things consistent
+    roomRegistry.delete(roomName);
+    roomMessages.delete(roomName);
+    console.log(`Removed room "${roomName}" from in-memory stores.`);
+
+    // Notify clients that the room list has changed
+    io.emit('rooms updated');
 });
-const Message = mongoose.model('Message', messageSchema);
-
-const roomSchema = new mongoose.Schema({
-    name: { type: String, required: true, unique: true },
-    desc: String,
-    icon: String,
-});
-
-// When a room is deleted from the database (e.g., via findOneAndDelete),
-// this middleware will trigger to also remove all associated messages.
-roomSchema.post('findOneAndDelete', async function (doc) {
-    if (doc) {
-        const roomName = doc.name;
-
-        // Also remove from our in-memory caches to keep things consistent
-        roomRegistry.delete(roomName);
-        roomMessages.delete(roomName);
-        console.log(`Removed room "${roomName}" from in-memory stores.`);
-
-        if (isMongoAvailable()) {
-            console.log(`Deleting messages for room: "${roomName}"`);
-            try {
-                await Message.deleteMany({ room: roomName });
-            } catch (error) {
-                console.error(`Error deleting messages for room "${roomName}":`, error);
-            }
-        }
-        io.emit('rooms updated'); // Notify clients that the room list has changed
-    }
-});
-const Room = mongoose.model('Room', roomSchema);
 
 const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
 
@@ -165,35 +141,44 @@ const getOlderRoomHistory = async (room, lastMessageId) => {
 };
 
 const loadAndSeedRooms = async () => {
-    // Always start with the default rooms in memory to ensure they exist.
-    for (const room of defaultRooms) {
-        roomRegistry.set(room.name, { ...room });
-    }
+    // Clear the registry to ensure we load fresh from the source of truth.
+    roomRegistry.clear();
 
     if (!isMongoAvailable()) {
         console.warn('MongoDB not available. Using only default in-memory rooms.');
+        // If no DB, just load defaults into memory.
+        for (const room of defaultRooms) {
+            roomRegistry.set(room.name, { ...room });
+        }
         return;
     }
 
     try {
-        const roomsInDb = await Room.find({});
-        if (roomsInDb.length === 0) {
-            console.log('No rooms found in database. Seeding with default rooms...');
-            // Filter out fields that are not in the schema before inserting
-            const roomsToSeed = defaultRooms.map(({ name, desc, icon }) => ({ name, desc, icon }));
-            await Room.insertMany(roomsToSeed);
-        } else {
-            console.log('Loading custom rooms from database...');
-            for (const dbRoom of roomsInDb) {
-                // Add to registry if it's not a default room already added
-                if (!roomRegistry.has(dbRoom.name)) {
-                    roomRegistry.set(dbRoom.name, { ...dbRoom.toObject() });
-                }
-            }
+        // Ensure all default rooms exist in the DB without overwriting them.
+        const upsertPromises = defaultRooms.map(room =>
+            Room.findOneAndUpdate(
+                { name: room.name },
+                { $setOnInsert: { desc: room.desc, icon: room.icon } },
+                { upsert: true, new: true }
+            )
+        );
+        await Promise.all(upsertPromises);
+        console.log('Default rooms seeded/verified in database.');
+
+        // Now, load ALL rooms from the database. This is the single source of truth.
+        const allDbRooms = await Room.find({});
+        console.log(`Found ${allDbRooms.length} rooms in the database to load.`);
+        for (const dbRoom of allDbRooms) {
+            roomRegistry.set(dbRoom.name, dbRoom.toObject());
         }
-        console.log(`${roomRegistry.size} rooms loaded into registry.`);
+        console.log(`${roomRegistry.size} rooms loaded into registry from database.`);
     } catch (error) {
         console.error('Error loading or seeding rooms:', error.message);
+        console.log('Falling back to default in-memory rooms due to error.');
+        // Fallback to in-memory if DB operations fail
+        for (const room of defaultRooms) {
+            roomRegistry.set(room.name, { ...room });
+        }
     }
 };
 
@@ -234,8 +219,6 @@ mongoose.connection.on('disconnected', () => {
     mongoReady = false;
     console.warn('MongoDB disconnected; using in-memory fallback for chat history.');
 });
-
-connectToDatabase();
 
 const ensureRoomExists = async (roomName) => {
     const trimmed = roomName.trim();
@@ -311,6 +294,34 @@ app.get('/api/rooms', async (req, res) => {
         const rooms = roomsFromRegistry.map(r => ({ ...r, memberCount: 0, totalMessages: 0 })).sort((a, b) => a.name.localeCompare(b.name));
         res.status(500).json(rooms);
     }
+});
+
+app.get('/api/rooms/:roomName/participants', (req, res) => {
+    const { roomName } = req.params;
+    const roomSockets = io.sockets.adapter.rooms.get(roomName);
+
+    if (!roomSockets) {
+        // Return an empty array if the room doesn't exist or is empty
+        return res.json([]);
+    }
+
+    const participants = [];
+    for (const socketId of roomSockets) {
+        const socket = io.sockets.sockets.get(socketId);
+        // Ensure the socket and its username exist before adding
+        if (socket && socket.username) {
+            participants.push({
+                username: socket.username,
+                picture: socket.picture || null, // Fallback to null if no picture
+            });
+        }
+    }
+
+    // A user might have multiple tabs open, creating multiple sockets in the same room.
+    // We can filter to get a list of unique users based on their username.
+    const uniqueParticipants = Array.from(new Map(participants.map(p => [p.username, p])).values());
+
+    res.json(uniqueParticipants);
 });
 
 // --- Authentication Routes ---
@@ -468,7 +479,17 @@ if (fs.existsSync(buildIndexPath)) {
     });
 }
 
-const PORT = process.env.PORT || 7777;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+/**
+ * Starts the server after ensuring the database is connected and initial data is loaded.
+ * This prevents a race condition where the server might start accepting requests
+ * before it's fully initialized.
+ */
+const startServer = async () => {
+    await connectToDatabase(); // This function connects and then seeds/loads rooms.
+    const PORT = process.env.PORT || 7777;
+    server.listen(PORT, () => {
+        console.log(`Server is ready and running on port ${PORT}`);
+    });
+};
+
+startServer();

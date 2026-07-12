@@ -1,12 +1,12 @@
-# Real-Time Chat App v1.2.9
+# Real-Time Chat App v1.2.10
 
-A simple real-time chat application with **Node.js**, **Express**, and **Socket.IO**.
+A real-time chat application built with the **MERN** stack (**MongoDB**, **Express**, **React**, **Node.js**) and **Socket.IO**.
 
 ---
 
-## 🚀 Features
+## 🚀 Core Features
 - Real-time communication using WebSockets (Socket.IO)
-- Frontend served with HTML, CSS, and JavaScript
+- Frontend built with **React**
 - Backend powered by Node.js and Express
 - Can be accessed globally using **ngrok**
 
@@ -15,150 +15,67 @@ A simple real-time chat application with **Node.js**, **Express**, and **Socket.
 ## 📂 Project Structure
 
 ```yaml
-📦Real-Time Chat App/
-┣ 📂.github/              # GitHub configurations
-┃ ┣ 📂workflows/        # CI/CD pipelines
-┃ ┃ ┣ 📜assign-claim.yml # Issue assignment
-┃ ┃ ┣ 📜unassign-stale.yml # Stale issue cleanup
-┃ ┣ 📜dependabot.yml      # Dependency updates
-┣ 📂client/             # Frontend application
-┃ ┣ 📂public/           # Static assets
-┃ ┃ ┣ 📂Backgrounds/    # UI theme assets
-┃ ┃ ┃ ┣ 📜aqua.png
-┃ ┃ ┃ ┣ 📜brown.png
-┃ ┃ ┃ ┣ 📜green.png
-┃ ┃ ┃ ┣ 📜navy-blue.png
-┃ ┃ ┃ ┣ 📜orange.png
-┃ ┃ ┃ ┣ 📜pink.png
-┃ ┃ ┃ ┣ 📜red.png
-┃ ┃ ┃ ┣ 📜sky-blue.png
-┃ ┃ ┃ ┣ 📜violet.png
-┃ ┃ ┃ ┣ 📜yellow.png
-┃ ┃ ┣ 📜favicon.ico      # Tab icon
-┃ ┃ ┣ 📜index.html       # HTML entry point
-┃ ┃ ┣ 📜logo192.png      # App icon
-┃ ┃ ┣ 📜logo512.png      # App icon
-┃ ┃ ┣ 📜manifest.json    # PWA configuration
-┃ ┃ ┣ 📜robots.txt       # Crawler rules
-┃ ┣ 📂src/              # React source code
-┃ ┃ ┣ 📂sounds/         # Audio notification files
-┃ ┃ ┃ ┣ 📜Imagine Dragons - Belie...
-┃ ┃ ┃ ┣ 📜John-Cena-The-Time-is-...
-┃ ┃ ┣ 📜App.css         # Main component styles
-┃ ┃ ┣ 📜App.js          # Main React component
-┃ ┃ ┣ 📜App.jsx         # App structure
-┃ ┃ ┣ 📜App.test.js     # Unit tests
-┃ ┃ ┣ 📜GoogleSignIn.js # Authentication logic
-┃ ┃ ┣ 📜index.css       # Global styles
-┃ ┃ ┣ 📜index.js        # App entry point
-┃ ┃ ┣ 📜logo.svg        # React logo
-┃ ┃ ┣ 📜reportWebVitals.js # Performance metrics
-┃ ┃ ┣ 📜setupTests.js   # Test environment setup
-┃ ┃ ┣ 📜.gitignore      # Untracked files
-┃ ┃ ┣ 📜GoogleSignIn.js # Duplicate auth logic
-┃ ┃ ┣ 📜README.md       # Client documentation
-┃ ┃ ┣ 📜package-lock.json # Dependency lock
-┃ ┃ ┣ 📜package.json    # Project dependencies
-┃ ┃ ┣ 📜pnpm-lock.yaml  # PNPM lock file
-┃ ┃ ┣ 📜pnpm-workspace.yaml # Workspace config
-┣ 📜.env                # Environment and Secret Variables File
-┣ 📜.gitignore          # Global ignore rules
-┣ 📜CONTRIBUTING.md     # Guidelines
-┣ 📜LICENSE             # Licensing info
-┣ 📜README.md           # Project docs
-┣ 📜SECURITY.md         # Security policy
-┣ 📜_redirects          # Netlify/Vercel rules
-┣ 📜index.html          # Root HTML
-┣ 📜package-lock.json   # NPM lock file
-┣ 📜package.json        # Main dependencies
-┣ 📜pnpm-lock.yaml      # Lock file
-┣ 📜server.js           # Server script
-┣ 📜yarn.lock           # Yarn lock file
-
+📦Real-Time-Chat-App/
+┣ 📂client/              # React frontend application
+┃ ┣ 📂public/            # Public assets (icons, index.html)
+┃ ┣ 📂src/               # React source code
+┃ ┣ 📜package.json       # Frontend dependencies
+┃ ┗ ...
+┣ 📂server/              # Node.js backend application
+┃ ┣ 📂models/            # Mongoose schemas (Message.js, Room.js)
+┃ ┣ 📜index.js           # Main server file (Express, Socket.IO)
+┃ ┣ 📜package.json       # Backend dependencies
+┃ ┗ ...
+┣ 📜.env                 # Environment variables (MONGO_URI, etc.)
+┣ 📜.gitignore           # Git ignore rules
+┣ 📜package.json         # Root package with dev scripts
+┣ 📜pnpm-lock.yaml       # PNPM lock file
+┗ 📜README.md            # This file
 ```
 ---
 
 ## 🖥️ Run Locally
-1. Clone the repo and install dependencies:
+1. **Clone & Install**
+   Clone the repo and install all dependencies from the root directory:
    ```bash
    git clone https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App.git
    cd Real-Time-Chat-App
-   npm install
-   cd client
-   npm install
+   pnpm install
    ```
 
-2. Start the backend from the project root:
-   ```bash
-   cd ..
-   npm run start
+2. **Set Up Environment**
+   Create a `.env` file in the root directory and add your variables. This file is used by the server.
    ```
-
-3. In a second terminal, start the React client:
-   ```bash
-   cd client
-   npm start
-   ```
-
-4. The app will be available at:
-   ```
-   http://localhost:3000
-   ```
-   and the backend will run on:
-   ```
-   http://localhost:7777
-   ```
-5. Don't forget to create this .env file.
-
-   ```
-   YOUR_GOOGLE_CLIENT_ID_HERE=GOOGLE_CLIENT_ID.apps.googleusercontent.com
+   # For the React frontend (must start with REACT_APP_)
+   REACT_APP_GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
+   # For the Node.js backend (used for token verification)
+   GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
    MONGO_URI=your_mongodb_connection_string
-   GITHUB_TOKEN=your_github_token
+   ADMIN_EMAIL=your_admin_email@gmail.com
    PORT=7777
    ```
 
----
-
-## 🌍 Make it Public with ngrok
-1. In another terminal, run:
+3. **Run the App**
+   Start both the client and server concurrently from the root directory:
    ```bash
-   ./ngrok/ngrok.exe http 7777
-   ```
-2. Copy the HTTPS forwarding URL ngrok gives you, e.g.:
-   ```
-   https://abcd-1234.ngrok-free.app
+   pnpm run dev
    ```
 
-3. Update your **frontend JS (client.js)**:
-   ```js
-   const socket = io("https://abcd-1234.ngrok-free.app");
-   ```
-
----
-
-## 🌐 Host Frontend on GitHub Pages
-1. Push only the **`public/` folder** to GitHub.  
-2. Go to **Repo → Settings → Pages → Deploy from Branch → main / root**.  
-3. GitHub Pages will give you a link:
-   ```
-   https://your-username.github.io/your-repo/
-   ```
-
-4. Your frontend is always online 🎉.  
-   Start your backend with `node server.js` + `ngrok` whenever you want it live.
+4. **Access the App**
+   - The React frontend will be available at `http://localhost:3000`.
+   - The Express backend will be running on `http://localhost:7777`.
 
 ---
 
 ## ⚡ Tech Stack
-- **Node.js**
-- **Express**
-- **Socket.IO**
-- **ngrok**
-- **GitHub Pages** (frontend hosting)
+- **Frontend**: React
+- **Backend**: Node.js, Express
+- **Database**: MongoDB (with Mongoose)
+- **Real-Time**: Socket.IO
 
 ---
 
 ## 📌 Notes
 - GitHub Pages can only host static frontend files.  
-- The backend (`server.js`) must be running locally or on a hosting service (ngrok, Render, Railway, etc.).  
+- The backend (`server/index.js`) must be running locally or on a hosting service (ngrok, Render, Railway, etc.).  
 - For a permanent public app, consider deploying the backend on **Render**, **Heroku**, or **Railway**.
