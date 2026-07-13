@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
-const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature }) => {
+const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture, roomsSignature }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +32,7 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
   }, [roomsSignature]); // Re-fetch when rooms are updated on the server
 
   const handleJoinRoom = (roomName) => {
-    const result = joinChatRoom(roomName, username);
+    const result = joinChatRoom(roomName, username, email, picture);
     if (result !== 'confirm') {
       onJoin();
     }

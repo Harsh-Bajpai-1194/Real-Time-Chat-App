@@ -388,6 +388,8 @@ function App() {
           onClose={() => setShowDiscoverRooms(false)}
           onJoin={() => setShowDiscoverRooms(false)}
           username={username}
+          email={email}
+          picture={picture}
           roomsSignature={roomsSignature}
         />
       ) : !isLoggedIn ? (

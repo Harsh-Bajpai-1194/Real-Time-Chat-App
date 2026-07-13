@@ -16,6 +16,30 @@ const GoogleSignIn = ({ onSignIn }) => {
         }
     };
 
+    // Add a mock login for development to make testing easier
+    if (process.env.NODE_ENV === 'development') {
+        const handleMockSignIn = () => {
+            onSignIn({
+                name: 'Mock Admin',
+                email: 'harshbajpai1194@gmail.com',
+                // Using a service that provides placeholder avatars
+                picture: 'https://i.pravatar.cc/150?u=mockadmin' 
+            });
+        };
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                <GoogleLogin
+                    onSuccess={handleSuccess}
+                    onError={() => console.log('Google Login Failed')}
+                />
+                <button onClick={handleMockSignIn} className="btn-secondary" style={{padding: '8px 12px'}}>
+                    Sign In as Mock Admin
+                </button>
+            </div>
+        );
+    }
+
     return (
         <GoogleLogin
             onSuccess={handleSuccess}
