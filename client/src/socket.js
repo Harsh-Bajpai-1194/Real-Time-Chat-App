@@ -1,12 +1,13 @@
 import { io } from 'socket.io-client';
-export const socket = io('https://real-time-chat-app-gl64.onrender.com/');
+
 export const getSocketUrl = () => {
   if (process.env.REACT_APP_SOCKET_URL) {
     return process.env.REACT_APP_SOCKET_URL;
   }
 
+  // Returns your live Render URL when hosted on Netlify
   if (process.env.NODE_ENV === 'production') {
-    return undefined;
+    return 'https://real-time-chat-app-gl64.onrender.com';
   }
 
   if (typeof window !== 'undefined') {
@@ -28,3 +29,7 @@ export const getSocketUrl = () => {
 
   return 'http://localhost:7777';
 };
+
+export const socket = io(getSocketUrl(), {
+  transports: ['websocket', 'polling'],
+});
