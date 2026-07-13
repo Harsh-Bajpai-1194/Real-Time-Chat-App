@@ -1,3 +1,5 @@
+import { io } from 'socket.io-client';
+export const socket = io('https://real-time-chat-app-gl64.onrender.com/');
 export const getSocketUrl = () => {
   if (process.env.REACT_APP_SOCKET_URL) {
     return process.env.REACT_APP_SOCKET_URL;
