@@ -12,7 +12,7 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, roomsSignature
         setLoading(true);
         // Use a relative path for the API request.
         // In development, this will be proxied to the backend server as configured in client/package.json.
-        const response = await fetch('/api/rooms');
+        const response = await fetch('https://real-time-chat-app-gl64.onrender.com/api/rooms');
         if (!response.ok) {
           throw new Error('Failed to fetch rooms');
         }
