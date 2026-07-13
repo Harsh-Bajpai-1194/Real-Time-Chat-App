@@ -35,9 +35,6 @@ importers:
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
-      react-router-dom:
-        specifier: ^6.30.4
-        version: 6.30.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-scripts:
         specifier: 5.0.1
         version: 5.0.1(@babel/plugin-syntax-flow@7.28.6(@babel/core@7.29.0))(@babel/plugin-transform-react-jsx@7.28.6(@babel/core@7.29.0))(@types/babel__core@7.20.5)(eslint@8.57.1)(react@19.2.4)(type-fest@0.21.3)(typescript@4.9.5)
@@ -1053,10 +1050,6 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
-
-  '@remix-run/router@1.23.3':
-    resolution: {integrity: sha512-4An71tdz9X8+3sI4Qqqd2LWd9vS39J7sqd9EU4Scw7TJE/qB10Flv/UuqbPVgfQV9XoK8Np6jNquZitnZq5i+Q==}
-    engines: {node: '>=14.0.0'}
 
   '@rollup/plugin-babel@5.3.1':
     resolution: {integrity: sha512-WFfdLWU/xVWKeRQnKmIAQULUI7Il0gZnBIH/ZFO069wYIfPu+8zrfp/KMW0atmELoRDq8FbiP3VCss9MhCut7Q==}
@@ -4544,19 +4537,6 @@ packages:
     resolution: {integrity: sha512-F27qZr8uUqwhWZboondsPx8tnC3Ct3SxZA3V5WyEvujRyyNv0VYPhoBg1gZ8/MV5tubQp76Trw8lTv9hzRBa+A==}
     engines: {node: '>=0.10.0'}
 
-  react-router-dom@6.30.4:
-    resolution: {integrity: sha512-q4HvNl+mmDdkS0g+MqiBZNteQJCuimWoOyHMy4T/RQLAn9Z29+E91QXRaxOujeMl2HTzRSS0KFPd7lxX3PjV0Q==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  react-router@6.30.4:
-    resolution: {integrity: sha512-SVUsDe+DybHM/WmYKIVYhZh1o5Dcuf16yM6WjG02Q9XVFMZIJyHYhwrr6bFBXZkVP6z69kNkMyBCujt8FaFLJA==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      react: '>=16.8'
-
   react-scripts@5.0.1:
     resolution: {integrity: sha512-8VAmEm/ZAwQzJ+GOMLbBsTdDKOpuZh7RPs0UymvBR2vRk4iZWCskjbFnxqjrzoIvlNNRZ3QJFx6/qDSi6zSnaQ==}
     engines: {node: '>=14.0.0'}
@@ -6883,8 +6863,6 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-
-  '@remix-run/router@1.23.3': {}
 
   '@rollup/plugin-babel@5.3.1(@babel/core@7.29.0)(@types/babel__core@7.20.5)(rollup@2.80.0)':
     dependencies:
@@ -10986,18 +10964,6 @@ snapshots:
   react-is@18.3.1: {}
 
   react-refresh@0.11.0: {}
-
-  react-router-dom@6.30.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
-      '@remix-run/router': 1.23.3
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      react-router: 6.30.4(react@19.2.4)
-
-  react-router@6.30.4(react@19.2.4):
-    dependencies:
-      '@remix-run/router': 1.23.3
-      react: 19.2.4
 
   react-scripts@5.0.1(@babel/plugin-syntax-flow@7.28.6(@babel/core@7.29.0))(@babel/plugin-transform-react-jsx@7.28.6(@babel/core@7.29.0))(@types/babel__core@7.20.5)(eslint@8.57.1)(react@19.2.4)(type-fest@0.21.3)(typescript@4.9.5):
     dependencies:
