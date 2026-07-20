@@ -1,60 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import './ParticipantsPage.css';
 
-const ParticipantsPage = () => {
-  const { roomName } = useParams();
-  const [participants, setParticipants] = useState([]);
+const ParticipantsPage = ({ roomName, onClose }) => {
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchParticipants = async () => {
+    const fetchMembers = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/rooms/${encodeURIComponent(roomName)}/participants`);
+        // Use a relative path. This requires the `/api/rooms/:roomName/members` endpoint on the server.
+        const response = await fetch(`/api/rooms/${encodeURIComponent(roomName)}/members`);
         if (!response.ok) {
-          throw new Error('Failed to fetch participants');
+          throw new Error(`Failed to fetch room members (status: ${response.status})`);
         }
-        const data = await response.json();
-        setParticipants(data);
-        setError(null);
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setMembers(data);
+          setError(null);
+        } else {
+          throw new Error('Received an invalid response from the server. Expected JSON.');
+        }
       } catch (err) {
         setError(err.message);
-        setParticipants([]);
+        setMembers([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchParticipants();
+    fetchMembers();
   }, [roomName]);
 
   return (
-    <div className="participants-page">
-      <header className="participants-header">
-        <Link to="/discover" className="back-link">← Back to Rooms</Link>
-        <h2>Participants in "{roomName}"</h2>
+    <div className="members-page">
+      <header className="members-header">
+        <button onClick={onClose} className="back-link">
+          ← Back to Rooms
+        </button>
+        <h2>All Members in "{roomName}"</h2>
       </header>
-      <main className="participants-list">
-        {loading && <p>Loading participants...</p>}
+      <main className="members-list">
+        {loading && (
+          <div className="loading-spinner-overlay">
+            <div className="loading-spinner"></div>
+          </div>
+        )}
         {error && <p className="error-message">{error}</p>}
         {!loading && !error && (
           <ul>
-            {participants.map((participant, index) => (
-              <li key={index} className="participant-item">
+            {members.map((member, index) => (
+              <li key={index} className="member-item">
                 <img
-                  src={participant.picture || `${process.env.PUBLIC_URL}/default-avatar.png`}
-                  alt={participant.username}
-                  className="participant-avatar"
+                  src={member.picture || `${process.env.PUBLIC_URL}/default-avatar.png`}
+                  alt={member.username}
+                  className="member-avatar"
                 />
-                <span className="participant-name">{participant.username}</span>
+                <span className="member-name">{member.username}</span>
               </li>
             ))}
           </ul>
         )}
-        {!loading && !error && participants.length === 0 && (
-          <p>There are currently no participants in this room.</p>
+        {!loading && !error && members.length === 0 && (
+          <p>This room has no members yet.</p>
         )}
       </main>
     </div>
