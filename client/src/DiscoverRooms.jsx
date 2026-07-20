@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
-const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture, roomsSignature }) => {
+// Automatically import ALL .mp4 files from the './sounds' directory
+const soundContext = require.context('./sounds', false, /\.mp4$/);
+const allSounds = soundContext.keys().map(soundContext);
+
+// GLOBAL variable to track the audio even when this component is closed/unmounted
+let globalAudio = null;
+
+const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture, roomsSignature, onViewMembers }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,28 +17,53 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture
     const fetchRooms = async () => {
       try {
         setLoading(true);
-        // Use a relative path for the API request.
-        // In development, this will be proxied to the backend server as configured in client/package.json.
-        const response = await fetch('https://real-time-chat-app-gl64.onrender.com/api/rooms');
+        const response = await fetch('/api/rooms');
         if (!response.ok) {
           throw new Error('Failed to fetch rooms');
         }
         const data = await response.json();
-        // Sort rooms by the number of messages in descending order
         setRooms(data.sort((a, b) => b.totalMessages - a.totalMessages));
         setError(null);
       } catch (err) {
         setError(err.message);
-        setRooms([]); // Clear rooms on error
+        setRooms([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchRooms();
-  }, [roomsSignature]); // Re-fetch when rooms are updated on the server
+  }, [roomsSignature]);
 
   const handleJoinRoom = (roomName) => {
+    // 1. STOP whatever is currently playing globally
+    if (globalAudio) {
+      globalAudio.pause();
+      globalAudio.currentTime = 0; // Rewind the old track
+      globalAudio.onended = null;  // Remove the old loop listener
+    }
+
+    // 2. Define the continuous play function
+    const playContinuousSounds = () => {
+      if (allSounds.length > 0) {
+        const randomSound = allSounds[Math.floor(Math.random() * allSounds.length)];
+        const audio = new Audio(randomSound);
+        
+        // Save this new audio object to our global variable
+        globalAudio = audio;
+
+        // When this audio finishes, loop again
+        globalAudio.onended = playContinuousSounds;
+        
+        globalAudio.play().catch(err => console.log("Playback prevented or failed:", err));
+      } else {
+        console.warn("No sounds were found in the ./sounds folder!");
+      }
+    };
+
+    // 3. Start the brand new infinite playlist
+    playContinuousSounds();
+    
     const result = joinChatRoom(roomName, username, email, picture);
     if (result !== 'confirm') {
       onJoin();
@@ -70,8 +102,8 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture
                   Join Room
                 </button>
                 <div className="room-sub-actions">
-                  <button className="participants-button" type="button" title="View participants">
-                    <img src={`${process.env.PUBLIC_URL}/participants.png`} alt="View participants" />
+                  <button className="participants-button" type="button" title="View members" onClick={() => onViewMembers(room.name)}>
+                    <img src={`${process.env.PUBLIC_URL}/participants.png`} alt="View members" />
                   </button>
                   <button className="settings-button" type="button" title="Room settings">
                     <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Room settings" />

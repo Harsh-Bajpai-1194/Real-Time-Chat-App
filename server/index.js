@@ -104,10 +104,13 @@ const saveMessageToStore = async (messageData) => {
 const getRoomHistory = async (room) => {
     if (isMongoAvailable()) {
         try {
-            const history = await Message.find({ room }).sort({ timestamp: -1 }).limit(50);
+            const history = await Message.find({ room })
+            .sort({ timestamp: -1 }) // Sort by newest first
+            .limit(50);
             return history.reverse();
         } catch (error) {
-            console.error('Error fetching chat history:', error.message);
+            // Add more detailed logging to pinpoint the issue
+            console.error(`Error fetching chat history for room "${room}":`, error);
         }
     }
 
@@ -187,7 +190,10 @@ const connectToDatabase = async () => {
     if (process.env.MONGO_URI) {
         candidateUris.push(process.env.MONGO_URI);
     }
-    candidateUris.push('mongodb://127.0.0.1:27017/realtime-chat');
+    // Only add the local fallback URI if we are NOT in a production environment
+    if (process.env.NODE_ENV !== 'production') {
+        candidateUris.push('mongodb://127.0.0.1:27017/realtime-chat');
+    }
 
     for (const uri of candidateUris) {
         try {
@@ -205,8 +211,14 @@ const connectToDatabase = async () => {
         }
     }
 
+    // If we are in production and all connection attempts failed, it's a fatal error.
+    if (process.env.NODE_ENV === 'production') {
+        console.error('FATAL: Could not connect to MongoDB in production. Ensure MONGO_URI is set and correct.');
+        process.exit(1);
+    }
+
     mongoReady = false;
-    await loadAndSeedRooms(); // Still load default rooms if DB fails
+    await loadAndSeedRooms(); // In development, fall back to in-memory storage.
     console.warn('MongoDB unavailable; the app will use in-memory storage for rooms and chat history for this session.');
 };
 
@@ -323,6 +335,43 @@ app.get('/api/rooms/:roomName/participants', (req, res) => {
 
     res.json(uniqueParticipants);
 });
+
+app.get('/api/rooms/:roomName/members', async (req, res) => {
+    try {
+      const roomName = req.params.roomName;
+  
+      // This query finds all unique users who have sent a message in the room.
+      const members = await Message.aggregate([
+        // 1. Find all messages for the specified room
+        { $match: { room: roomName } },
+        // 2. Group by a unique user identifier (like email) to get unique users
+        {
+          $group: {
+            _id: '$email', // Group by email to ensure each person appears only once
+            username: { $first: '$username' },
+            picture: { $first: '$picture' },
+            email: { $first: '$email' }
+          }
+        },
+        // 3. Reshape the output to be a clean object
+        {
+          $project: {
+            _id: 0,
+            username: 1,
+            picture: 1,
+            email: 1
+          }
+        },
+        // 4. Sort the members alphabetically by username
+        { $sort: { username: 1 } }
+      ]);
+  
+      res.json(members);
+    } catch (error) {
+      console.error('Failed to fetch room members:', error);
+      res.status(500).json({ message: 'Error fetching room members' });
+    }
+  });
 
 // --- Authentication Routes ---
 app.post('/api/auth/google', async (req, res) => {

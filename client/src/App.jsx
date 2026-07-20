@@ -7,13 +7,20 @@ import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
 import DiscoverRooms from './DiscoverRooms.jsx';
 import Admin from './Admin';
+import ParticipantsPage from './ParticipantsPage.jsx';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
+import { FaMusic, FaVolumeMute } from 'react-icons/fa';
 
 const getFormattedTime = (timestamp) => {
   if (!timestamp) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const date = new Date(timestamp);
   return isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+const songPlaylist = [
+  'Imagine_Dragons-Believer.mp4',
+  'John-Cena-The-Time-is-Now-WWE.mp3',
+];
 
 function App() {
   const [username, setUsername] = useState('');
@@ -28,6 +35,9 @@ function App() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const socketRef = useRef(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [currentSongIndex, setCurrentSongIndex] = useState(0);
+  const audioRef = useRef(null);
   const pendingJoinRef = useRef(null);
   const roomRef = useRef();
   const typingTimeoutRef = useRef(null);
@@ -54,6 +64,13 @@ function App() {
   const [roomsSignature, setRoomsSignature] = useState(Date.now());
   const scrollHeightBeforeUpdate = useRef(null);
   const [showDiscoverRooms, setShowDiscoverRooms] = useState(false);
+  const [viewingMembersOf, setViewingMembersOf] = useState(null);
+  
+  // startMusic MUST be declared before joinChatRoomCallback to avoid no-use-before-define error
+  const startMusic = useCallback(() => {
+    setIsMusicPlaying(true);
+  }, []);
+
   const joinChatRoomCallback = useCallback((roomName, selectedUsername, userEmail = '', userPicture = '') => {
     const socket = socketRef.current;
     const nextRoom = roomName.trim();
@@ -84,10 +101,16 @@ function App() {
     const sessionData = { name: nextUsername, room: nextRoom, email: userEmail, picture: finalPicture };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     setIsLoggedIn(true);
-    return 'joined';
-  }, [room]);
+
+    const believerIndex = songPlaylist.findIndex(song => song === 'Imagine_Dragons-Believer.mp4');
+    if (believerIndex !== -1) {
+      setCurrentSongIndex(believerIndex);
+    }
+    startMusic();
+    return 'joined'; 
+  }, [room, startMusic, setCurrentSongIndex]); 
   
-  const toggleBackgroundPicker = () => {
+  const toggleBackgroundPicker = () => { 
     setShowBackgroundPicker((prev) => !prev);
   };
 
@@ -169,11 +192,13 @@ function App() {
 
     const handleChatHistory = (history, roomName) => {
       if (roomRef.current === roomName) {
-        const formattedHistory = history.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
+        const formattedHistory = history.map(msg => ({
+          ...msg,
+          type: msg.username ? 'chat' : 'system', 
+          time: getFormattedTime(msg.timestamp)
+        }));
         setMessages(prevMessages => {
-          const otherMessages = prevMessages.filter(
-            msg => msg.room !== roomName || msg.type !== 'chat'
-          );
+          const otherMessages = prevMessages.filter(msg => msg.room !== roomName);
           return [...otherMessages, ...formattedHistory];
         });
       }
@@ -185,7 +210,11 @@ function App() {
         if (container) {
           scrollHeightBeforeUpdate.current = container.scrollHeight;
         }
-        const formattedHistory = olderMessages.map(msg => ({ ...msg, type: 'chat', time: getFormattedTime(msg.timestamp) }));
+        const formattedHistory = olderMessages.map(msg => ({
+          ...msg,
+          type: msg.username ? 'chat' : 'system', 
+          time: getFormattedTime(msg.timestamp)
+        }));
         setMessages(prevMessages => [...formattedHistory, ...prevMessages]);
       }
       setIsFetchingOlderMessages(false);
@@ -230,22 +259,52 @@ function App() {
     };
   }, []);
 
-  const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (container && container.scrollTop <= 20 && !isFetchingOlderMessages && messages.length > 0) {
-      const oldestMessageId = messages[0]?._id;
-      if (oldestMessageId) {
-        setIsFetchingOlderMessages(true);
-        socketRef.current.emit('fetch older messages', {
-          room: room,
-          lastMessageId: oldestMessageId,
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const playNextSong = () => {
+      setCurrentSongIndex((prevIndex) => (prevIndex + 1) % songPlaylist.length);
+    };
+
+    if (isMusicPlaying) {
+      // Ensure the audio source is set before attempting to play
+      if (audio.src !== `${process.env.PUBLIC_URL}/sounds/${songPlaylist[currentSongIndex]}`) {
+        audio.src = `${process.env.PUBLIC_URL}/sounds/${songPlaylist[currentSongIndex]}`;
+      }
+      const playPromise = audio.play(); // Attempt to play
+      if (playPromise !== undefined) { // Check if play() returns a Promise
+        playPromise.catch(error => { // Catch potential autoplay errors
+          console.error("Audio play failed. User interaction is required or browser autoplay restrictions.", error);
+          setIsMusicPlaying(false);
         });
       }
+    } else {
+      audio.pause();
     }
-  }, [messages, isFetchingOlderMessages, room]);
+
+    audio.addEventListener('ended', playNextSong);
+
+    return () => { 
+      audio.removeEventListener('ended', playNextSong);
+    };
+  }, [isMusicPlaying, currentSongIndex]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
+    const handleScroll = () => {
+      if (container && container.scrollTop <= 20 && !isFetchingOlderMessages && messages.length > 0) {
+        const oldestMessageId = messages[0]?._id;
+        if (oldestMessageId) {
+          setIsFetchingOlderMessages(true);
+          socketRef.current.emit('fetch older messages', {
+            room: room,
+            lastMessageId: oldestMessageId,
+          });
+        }
+      }
+    };
+
     if (container) {
       container.addEventListener('scroll', handleScroll);
     }
@@ -254,7 +313,7 @@ function App() {
         container.removeEventListener('scroll', handleScroll);
       }
     };
-  }, [handleScroll]);
+  }, [messages, isFetchingOlderMessages, room]);
 
   const joinChatRoom = joinChatRoomCallback;
 
@@ -284,6 +343,13 @@ function App() {
     const sessionData = { name: nextUsername, room: nextRoom, email: userEmail, picture: userPicture };
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     if (userEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
+    
+    setShowDiscoverRooms(false);
+    const believerIndex = songPlaylist.findIndex(song => song === 'Imagine_Dragons-Believer.mp4');
+    if (believerIndex !== -1) {
+      setCurrentSongIndex(believerIndex);
+    }
+    startMusic(); // This will now just set isMusicPlaying(true)
     setIsLoggedIn(true);
   };
 
@@ -291,7 +357,6 @@ function App() {
     e.preventDefault();
     if (room.trim()) {
       joinChatRoomCallback(room, username, email, picture);
-      setIsLoggedIn(true);
     }
   };
 
@@ -345,9 +410,17 @@ function App() {
     setShowDiscoverRooms(true);
   };
 
+  const handleViewMembers = (roomName) => {
+    setViewingMembersOf(roomName);
+  };
+
+  const toggleMusic = async () => {
+    setIsMusicPlaying((prev) => !prev);
+  };
+
   return (
     <>
-      {/* Popups can remain outside the router, controlled by local state */}
+      <audio ref={audioRef} preload="auto"/>
       {showCreateRoomPopup && (
         <div className="popup-overlay">
           <form onSubmit={handleLogin} className="login-form">
@@ -382,6 +455,13 @@ function App() {
         </div>
       )}
 
+      {viewingMembersOf && (
+        <ParticipantsPage
+          roomName={viewingMembersOf}
+          onClose={() => setViewingMembersOf(null)}
+        />
+      )}
+
       {showDiscoverRooms ? (
         <DiscoverRooms
           joinChatRoom={joinChatRoom}
@@ -390,6 +470,7 @@ function App() {
           username={username}
           email={email}
           picture={picture}
+          onViewMembers={handleViewMembers}
           roomsSignature={roomsSignature}
         />
       ) : !isLoggedIn ? (
@@ -398,7 +479,7 @@ function App() {
             <div className="login-form">
               <h2>Join Chat <div className="release-link-wrapper">
                 <a href="https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App" target="_blank" rel="noopener noreferrer" className="release-link">
-                  <img src="https://img.shields.io/badge/Release-v1.2.10-deeppink?style=for-the-the-badge&logo=github" alt="v1.2.10" className="release-badge" />
+                  <img src="https://img.shields.io/badge/Release-v1.3.0-deeppink?style=for-the-the-badge&logo=github" alt="v1.3.0" className="release-badge" />
                 </a>
               </div>
               </h2>
@@ -436,6 +517,9 @@ function App() {
               <p>Welcome, {username}</p>
             </div>
             <div className="chat-header-actions">
+              <button onClick={toggleMusic} className="btn-secondary" title={isMusicPlaying ? "Mute Music" : "Play Music"}>
+                {isMusicPlaying ? <FaVolumeMute /> : <FaMusic />}
+              </button>
               <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
                 <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
               </button>
@@ -529,6 +613,20 @@ function App() {
             />
             <button className="btn-primary" type="submit">Send</button>
           </form>
+        </div>
+      )}
+      {pendingRoomSwitch && (
+        <div className="popup-overlay">
+          <div className="login-form" style={{ maxWidth: '420px' }}>
+            <h2>Switch Room?</h2>
+            <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
+              Are you sure you want to join this room? This will make you leave the previous room.
+            </p>
+            <div className="form-actions">
+              <button className="btn-primary" type="button" onClick={confirmRoomSwitch}>Yes, Join Room</button>
+              <button className="btn-secondary" type="button" onClick={() => setPendingRoomSwitch(null)}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
     </>
