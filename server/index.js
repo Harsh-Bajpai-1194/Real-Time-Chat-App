@@ -50,7 +50,7 @@ app.use(express.json());
 
 // --- MongoDB Connection ---
 // Make sure you have MongoDB running and replace the URI if needed.
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/realtime-chat';
+const MONGO_URI = process.env.MONGO_URI;
 let mongoReady = false;
 const roomMessages = new Map();
 const roomRegistry = new Map();
@@ -186,40 +186,30 @@ const loadAndSeedRooms = async () => {
 };
 
 const connectToDatabase = async () => {
-    const candidateUris = [];
-    if (process.env.MONGO_URI) {
-        candidateUris.push(process.env.MONGO_URI);
-    }
-    // Only add the local fallback URI if we are NOT in a production environment
-    if (process.env.NODE_ENV !== 'production') {
-        candidateUris.push('mongodb://127.0.0.1:27017/realtime-chat');
+    const mongoUri = process.env.MONGO_URI;
+
+    if (!mongoUri) {
+        mongoReady = false;
+        await loadAndSeedRooms(); // Fall back to in-memory storage.
+        console.warn('MONGO_URI not set. The app will use in-memory storage for rooms and chat history for this session.');
+        return;
     }
 
-    for (const uri of candidateUris) {
-        try {
-            await mongoose.connect(uri, {
-                serverSelectionTimeoutMS: 4000,
-                socketTimeoutMS: 4000,
-                family: 4,
-            });
-            mongoReady = true;
-            console.log(`MongoDB connected successfully using ${uri}`);
-            await loadAndSeedRooms();
-            return;
-        } catch (error) {
-            console.warn(`MongoDB connection failed for ${uri}: ${error.message}`);
-        }
+    try {
+        await mongoose.connect(mongoUri, {
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 10000,
+            family: 4,
+        });
+        mongoReady = true;
+        console.log(`MongoDB connected successfully.`);
+        await loadAndSeedRooms();
+    } catch (error) {
+        mongoReady = false;
+        console.warn(`MongoDB connection failed: ${error.message}`);
+        await loadAndSeedRooms(); // Fall back to in-memory storage.
+        console.warn('MongoDB unavailable; the app will use in-memory storage for rooms and chat history for this session.');
     }
-
-    // If we are in production and all connection attempts failed, it's a fatal error.
-    if (process.env.NODE_ENV === 'production') {
-        console.error('FATAL: Could not connect to MongoDB in production. Ensure MONGO_URI is set and correct.');
-        process.exit(1);
-    }
-
-    mongoReady = false;
-    await loadAndSeedRooms(); // In development, fall back to in-memory storage.
-    console.warn('MongoDB unavailable; the app will use in-memory storage for rooms and chat history for this session.');
 };
 
 mongoose.connection.on('error', (error) => {
