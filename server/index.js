@@ -49,9 +49,7 @@ app.use((req, res, next) => {
 app.use(express.json()); 
 
 // --- MongoDB Connection ---
-// Make sure you have MongoDB running and replace the URI if needed.
 const MONGO_URI = process.env.MONGO_URI;
-let mongoReady = false;
 const roomMessages = new Map();
 const roomRegistry = new Map();
 
@@ -65,31 +63,108 @@ const defaultRooms = [
 ];
 
 // Listen for the 'roomDeleted' event emitted from the Room model's middleware.
-// This decouples the database logic from the server's runtime state.
 Room.on('roomDeleted', (roomName) => {
-    // Also remove from our in-memory caches to keep things consistent
     roomRegistry.delete(roomName);
     roomMessages.delete(roomName);
     console.log(`Removed room "${roomName}" from in-memory stores.`);
-
-    // Notify clients that the room list has changed
     io.emit('rooms updated');
 });
 
-const isMongoAvailable = () => mongoReady && mongoose.connection.readyState === 1;
+const isMongoAvailable = () => mongoose.connection.readyState === 1;
 
-const saveMessageToStore = async (messageData) => {
-    if (isMongoAvailable()) {
-        try {
-            const message = new Message(messageData);
-            await message.save();
-            return message.toObject(); // Return the saved document
-        } catch (error) {
-            console.error('Error saving message to database:', error.message);
-            return null;
+let isConnecting = false;
+let reconnectTimer = null;
+
+const scheduleReconnect = () => {
+    if (reconnectTimer || mongoose.connection.readyState === 1) return;
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (mongoose.connection.readyState !== 1 && process.env.MONGO_URI) {
+            console.log('Retrying MongoDB connection...');
+            connectToDatabase();
         }
+    }, 5000);
+};
+
+const loadAndSeedRooms = async () => {
+    roomRegistry.clear();
+
+    if (!isMongoAvailable()) {
+        console.warn('MongoDB not available. Using in-memory rooms.');
+        for (const room of defaultRooms) {
+            roomRegistry.set(room.name, { ...room });
+        }
+        return;
     }
 
+    try {
+        const upsertPromises = defaultRooms.map(room =>
+            Room.findOneAndUpdate(
+                { name: room.name },
+                { $setOnInsert: { desc: room.desc, icon: room.icon } },
+                { upsert: true, new: true }
+            )
+        );
+        await Promise.all(upsertPromises);
+
+        const allDbRooms = await Room.find({});
+        for (const dbRoom of allDbRooms) {
+            roomRegistry.set(dbRoom.name, dbRoom.toObject());
+        }
+        console.log(`${roomRegistry.size} rooms loaded into registry from MongoDB.`);
+    } catch (error) {
+        console.error('Error loading or seeding rooms:', error.message);
+        for (const room of defaultRooms) {
+            roomRegistry.set(room.name, { ...room });
+        }
+    }
+};
+
+const connectToDatabase = async () => {
+    const mongoUri = process.env.MONGO_URI;
+
+    if (!mongoUri) {
+        console.warn('MONGO_URI not set. The app will use in-memory storage for rooms and chat history.');
+        await loadAndSeedRooms();
+        return;
+    }
+
+    if (mongoose.connection.readyState === 1 || isConnecting) {
+        return;
+    }
+
+    isConnecting = true;
+    try {
+        await mongoose.connect(mongoUri, {
+            serverSelectionTimeoutMS: 15000,
+            socketTimeoutMS: 45000,
+        });
+        isConnecting = false;
+        console.log('MongoDB connected successfully.');
+        await loadAndSeedRooms();
+    } catch (error) {
+        isConnecting = false;
+        console.warn(`MongoDB connection failed: ${error.message}`);
+        await loadAndSeedRooms();
+        scheduleReconnect();
+    }
+};
+
+mongoose.connection.on('connected', () => {
+    console.log('MongoDB connection established.');
+    loadAndSeedRooms();
+});
+
+mongoose.connection.on('error', (error) => {
+    console.warn(`MongoDB connection error: ${error.message}`);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.warn('MongoDB disconnected; scheduling reconnect.');
+    scheduleReconnect();
+});
+
+const saveMessageToStore = async (messageData) => {
     const room = messageData.room;
     const messages = roomMessages.get(room) || [];
     messages.push({ ...messageData, timestamp: messageData.timestamp || new Date() });
@@ -97,19 +172,30 @@ const saveMessageToStore = async (messageData) => {
         messages.splice(0, messages.length - 250);
     }
     roomMessages.set(room, messages);
-    // For in-memory, we don't have a real DB ID, so we can fake one for consistency
+
+    if (isMongoAvailable()) {
+        try {
+            const message = new Message(messageData);
+            await message.save();
+            return message.toObject();
+        } catch (error) {
+            console.error('Error saving message to database:', error.message);
+        }
+    }
+
     return { ...messageData, _id: new mongoose.Types.ObjectId().toString() };
 };
 
 const getRoomHistory = async (room) => {
     if (isMongoAvailable()) {
         try {
-            const history = await Message.find({ room })
-            .sort({ timestamp: -1 }) // Sort by newest first
+            const history = await Message.find({
+                room: { $regex: new RegExp(`^${room.trim()}$`, 'i') }
+            })
+            .sort({ timestamp: -1 })
             .limit(50);
             return history.reverse();
         } catch (error) {
-            // Add more detailed logging to pinpoint the issue
             console.error(`Error fetching chat history for room "${room}":`, error);
         }
     }
@@ -126,7 +212,7 @@ const getOlderRoomHistory = async (room, lastMessageId) => {
             if (!lastMessage) return [];
 
             const olderMessages = await Message.find({
-                room,
+                room: { $regex: new RegExp(`^${room.trim()}$`, 'i') },
                 timestamp: { $lt: lastMessage.timestamp }
             }).sort({ timestamp: -1 }).limit(50);
 
@@ -142,85 +228,6 @@ const getOlderRoomHistory = async (room, lastMessageId) => {
     if (index === -1) return [];
     return allMessages.slice(Math.max(0, index - 50), index);
 };
-
-const loadAndSeedRooms = async () => {
-    // Clear the registry to ensure we load fresh from the source of truth.
-    roomRegistry.clear();
-
-    if (!isMongoAvailable()) {
-        console.warn('MongoDB not available. Using only default in-memory rooms.');
-        // If no DB, just load defaults into memory.
-        for (const room of defaultRooms) {
-            roomRegistry.set(room.name, { ...room });
-        }
-        return;
-    }
-
-    try {
-        // Ensure all default rooms exist in the DB without overwriting them.
-        const upsertPromises = defaultRooms.map(room =>
-            Room.findOneAndUpdate(
-                { name: room.name },
-                { $setOnInsert: { desc: room.desc, icon: room.icon } },
-                { upsert: true, new: true }
-            )
-        );
-        await Promise.all(upsertPromises);
-        console.log('Default rooms seeded/verified in database.');
-
-        // Now, load ALL rooms from the database. This is the single source of truth.
-        const allDbRooms = await Room.find({});
-        console.log(`Found ${allDbRooms.length} rooms in the database to load.`);
-        for (const dbRoom of allDbRooms) {
-            roomRegistry.set(dbRoom.name, dbRoom.toObject());
-        }
-        console.log(`${roomRegistry.size} rooms loaded into registry from database.`);
-    } catch (error) {
-        console.error('Error loading or seeding rooms:', error.message);
-        console.log('Falling back to default in-memory rooms due to error.');
-        // Fallback to in-memory if DB operations fail
-        for (const room of defaultRooms) {
-            roomRegistry.set(room.name, { ...room });
-        }
-    }
-};
-
-const connectToDatabase = async () => {
-    const mongoUri = process.env.MONGO_URI;
-
-    if (!mongoUri) {
-        mongoReady = false;
-        await loadAndSeedRooms(); // Fall back to in-memory storage.
-        console.warn('MONGO_URI not set. The app will use in-memory storage for rooms and chat history for this session.');
-        return;
-    }
-
-    try {
-        await mongoose.connect(mongoUri, {
-            serverSelectionTimeoutMS: 10000,
-            socketTimeoutMS: 10000,
-            family: 4,
-        });
-        mongoReady = true;
-        console.log(`MongoDB connected successfully.`);
-        await loadAndSeedRooms();
-    } catch (error) {
-        mongoReady = false;
-        console.warn(`MongoDB connection failed: ${error.message}`);
-        await loadAndSeedRooms(); // Fall back to in-memory storage.
-        console.warn('MongoDB unavailable; the app will use in-memory storage for rooms and chat history for this session.');
-    }
-};
-
-mongoose.connection.on('error', (error) => {
-    mongoReady = false;
-    console.warn(`MongoDB connection error: ${error.message}`);
-});
-
-mongoose.connection.on('disconnected', () => {
-    mongoReady = false;
-    console.warn('MongoDB disconnected; using in-memory fallback for chat history.');
-});
 
 const ensureRoomExists = async (roomName) => {
     const trimmed = roomName.trim();
@@ -252,15 +259,19 @@ const ensureRoomExists = async (roomName) => {
 };
 
 app.get('/api/rooms', async (req, res) => {
+    if (!isMongoAvailable() && process.env.MONGO_URI) {
+        connectToDatabase();
+    }
+
     const roomsFromRegistry = Array.from(roomRegistry.values());
 
     if (!isMongoAvailable()) {
         const rooms = roomsFromRegistry.map(room => {
             const messages = roomMessages.get(room.name) || [];
             const totalMessages = messages.length;
-            const memberCount = new Set(messages.map(m => m.username)).size;
+            const memberCount = new Set(messages.map(m => m.username).filter(Boolean)).size;
             return { ...room, memberCount, totalMessages };
-        }).sort((a, b) => a.name.localeCompare(b.name));
+        }).sort((a, b) => (b.totalMessages || 0) - (a.totalMessages || 0));
         return res.json(rooms);
     }
 
@@ -270,7 +281,7 @@ app.get('/api/rooms', async (req, res) => {
                 $group: {
                     _id: '$room',
                     totalMessages: { $sum: 1 },
-                    uniqueUsers: { $addToSet: '$username' }
+                    uniqueUsers: { $addToSet: { $ifNull: ['$username', 'Anonymous'] } }
                 }
             },
             {
@@ -283,18 +294,49 @@ app.get('/api/rooms', async (req, res) => {
             }
         ]);
 
-        const statsMap = new Map(stats.map(stat => [stat.name, stat]));
+        const statsMap = new Map();
+        for (const stat of stats) {
+            if (stat.name) {
+                const roomNameStr = String(stat.name).trim();
+                statsMap.set(roomNameStr.toLowerCase(), {
+                    ...stat,
+                    name: roomNameStr
+                });
 
-        const rooms = roomsFromRegistry.map(room => {
-            const roomStats = statsMap.get(room.name) || { memberCount: 0, totalMessages: 0 };
-            return { ...room, memberCount: roomStats.memberCount, totalMessages: roomStats.totalMessages };
-        }).sort((a, b) => a.name.localeCompare(b.name));
+                if (!roomRegistry.has(roomNameStr)) {
+                    roomRegistry.set(roomNameStr, {
+                        name: roomNameStr,
+                        desc: 'A chat room.',
+                        icon: '💬'
+                    });
+                }
+            }
+        }
+
+        const updatedRoomsFromRegistry = Array.from(roomRegistry.values());
+
+        const rooms = updatedRoomsFromRegistry.map(room => {
+            const key = room.name ? String(room.name).trim().toLowerCase() : '';
+            const roomStats = statsMap.get(key) || { memberCount: 0, totalMessages: 0 };
+            return {
+                ...room,
+                memberCount: roomStats.memberCount,
+                totalMessages: roomStats.totalMessages
+            };
+        }).sort((a, b) => b.totalMessages - a.totalMessages);
 
         res.json(rooms);
     } catch (error) {
-        console.error('Error fetching room stats:', error);
-        const rooms = roomsFromRegistry.map(r => ({ ...r, memberCount: 0, totalMessages: 0 })).sort((a, b) => a.name.localeCompare(b.name));
-        res.status(500).json(rooms);
+        console.error('Error fetching room stats from MongoDB:', error);
+        const rooms = roomsFromRegistry.map(room => {
+            const messages = roomMessages.get(room.name) || [];
+            return {
+                ...room,
+                memberCount: new Set(messages.map(m => m.username).filter(Boolean)).size,
+                totalMessages: messages.length
+            };
+        }).sort((a, b) => (b.totalMessages || 0) - (a.totalMessages || 0));
+        res.json(rooms);
     }
 });
 
@@ -328,22 +370,36 @@ app.get('/api/rooms/:roomName/participants', (req, res) => {
 
 app.get('/api/rooms/:roomName/members', async (req, res) => {
     try {
-      const roomName = req.params.roomName;
+      const roomName = req.params.roomName.trim();
   
-      // This query finds all unique users who have sent a message in the room.
+      if (!isMongoAvailable()) {
+          const messages = roomMessages.get(roomName) || [];
+          const uniqueMembersMap = new Map();
+          for (const m of messages) {
+              if (m.username) {
+                  const key = m.email || m.username;
+                  if (!uniqueMembersMap.has(key)) {
+                      uniqueMembersMap.set(key, {
+                          username: m.username,
+                          picture: m.picture || null,
+                          email: m.email || ''
+                      });
+                  }
+              }
+          }
+          return res.json(Array.from(uniqueMembersMap.values()));
+      }
+
       const members = await Message.aggregate([
-        // 1. Find all messages for the specified room
-        { $match: { room: roomName } },
-        // 2. Group by a unique user identifier (like email) to get unique users
+        { $match: { room: { $regex: new RegExp(`^${roomName}$`, 'i') } } },
         {
           $group: {
-            _id: '$email', // Group by email to ensure each person appears only once
+            _id: { $ifNull: ['$email', '$username'] },
             username: { $first: '$username' },
             picture: { $first: '$picture' },
             email: { $first: '$email' }
           }
         },
-        // 3. Reshape the output to be a clean object
         {
           $project: {
             _id: 0,
@@ -352,14 +408,27 @@ app.get('/api/rooms/:roomName/members', async (req, res) => {
             email: 1
           }
         },
-        // 4. Sort the members alphabetically by username
         { $sort: { username: 1 } }
       ]);
   
       res.json(members);
     } catch (error) {
       console.error('Failed to fetch room members:', error);
-      res.status(500).json({ message: 'Error fetching room members' });
+      const messages = roomMessages.get(req.params.roomName.trim()) || [];
+      const uniqueMembersMap = new Map();
+      for (const m of messages) {
+          if (m.username) {
+              const key = m.email || m.username;
+              if (!uniqueMembersMap.has(key)) {
+                  uniqueMembersMap.set(key, {
+                      username: m.username,
+                      picture: m.picture || null,
+                      email: m.email || ''
+                  });
+              }
+          }
+      }
+      res.json(Array.from(uniqueMembersMap.values()));
     }
   });
 
@@ -474,14 +543,21 @@ io.on('connection', (socket) => {
             return socket.emit('system message', 'You are not authorized to delete messages.');
         }
 
-        try {
-            const result = await Message.findByIdAndDelete(messageId);
-            if (result) {
-                io.to(room).emit('message deleted', messageId);
+        if (isMongoAvailable()) {
+            try {
+                const result = await Message.findByIdAndDelete(messageId);
+                if (result) {
+                    io.to(room).emit('message deleted', messageId);
+                }
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                socket.emit('system message', 'Error deleting message.');
             }
-        } catch (error) {
-            console.error('Error deleting message:', error);
-            socket.emit('system message', 'Error deleting message.');
+        } else {
+            const messages = roomMessages.get(room) || [];
+            const updated = messages.filter(m => m._id !== messageId);
+            roomMessages.set(room, updated);
+            io.to(room).emit('message deleted', messageId);
         }
     });
     // Handle disconnect
@@ -492,7 +568,7 @@ io.on('connection', (socket) => {
 });
 
 // Serve the built frontend when it exists; otherwise provide a helpful local-dev fallback.
-const buildPath = path.join(__dirname, 'client', 'build');
+const buildPath = path.join(__dirname, '..', 'client', 'build');
 const buildIndexPath = path.join(buildPath, 'index.html');
 
 if (fs.existsSync(buildIndexPath)) {
@@ -525,8 +601,8 @@ if (fs.existsSync(buildIndexPath)) {
  */
 const startServer = async () => {
     await connectToDatabase(); // This function connects and then seeds/loads rooms.
-    const PORT = process.env.PORT || 7777;
-    server.listen(PORT, () => {
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is ready and running on port ${PORT}`);
     });
 };

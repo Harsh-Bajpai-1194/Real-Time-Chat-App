@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ParticipantsPage.css';
+import { getAvatarUrl } from './utils/getAvatarUrl.js';
 
 const ParticipantsPage = ({ roomName, onClose }) => {
   const [members, setMembers] = useState([]);
@@ -38,10 +39,8 @@ const ParticipantsPage = ({ roomName, onClose }) => {
   return (
     <div className="members-page">
       <header className="members-header">
-        <button onClick={onClose} className="back-link">
-          ← Back to Rooms
-        </button>
-        <h2>All Members in "{roomName}"</h2>
+        <h2>All Members in "{roomName}" {!loading && `(${members.length})`}</h2>
+        <button onClick={onClose} className="close-btn" title="Close">×</button>
       </header>
       <main className="members-list">
         {loading && (
@@ -53,11 +52,15 @@ const ParticipantsPage = ({ roomName, onClose }) => {
         {!loading && !error && (
           <ul>
             {members.map((member, index) => (
-              <li key={index} className="member-item">
+              <li key={member.username || index} className="member-item">
                 <img
-                  src={member.picture || `${process.env.PUBLIC_URL}/default-avatar.png`}
+                  src={getAvatarUrl(member.username, member.picture, member.email)}
                   alt={member.username}
                   className="member-avatar"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = getAvatarUrl(member.username, '', member.email);
+                  }}
                 />
                 <span className="member-name">{member.username}</span>
               </li>

@@ -66,7 +66,7 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture
     
     const result = joinChatRoom(roomName, username, email, picture);
     if (result !== 'confirm') {
-      onJoin();
+      onJoin(roomName);
     }
   };
 

@@ -5,29 +5,11 @@ export const getSocketUrl = () => {
     return process.env.REACT_APP_SOCKET_URL;
   }
 
-  // Returns your live Render URL when hosted on Netlify
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://real-time-chat-app-gl64.onrender.com';
-  }
-
   if (typeof window !== 'undefined') {
-    const host = window.location.host;
-    const protocol = window.location.protocol;
-
-    // GitHub.dev / Codespaces forwarded ports use host-based port routing.
-    const githubDevMatch = host.match(/^(.*?)-\d+\.app\.github\.dev$/);
-    if (githubDevMatch) {
-      return `${protocol}//${githubDevMatch[1]}-7777.app.github.dev`;
-    }
-
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:7777';
-    }
-
-    return `${protocol}//${window.location.hostname}:7777`;
+    return window.location.origin;
   }
 
-  return 'http://localhost:7777';
+  return 'http://localhost:3000';
 };
 
 export const socket = io(getSocketUrl(), {

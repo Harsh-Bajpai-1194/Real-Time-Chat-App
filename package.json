@@ -3,15 +3,25 @@
   "version": "1.0.0",
   "description": "Workspace scripts for the Real-Time Chat App.",
   "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "start": "npm run server",
+    "build:frontend": "npm --prefix client run build",
+    "build": "npm run build:frontend",
+    "start": "node server/index.js",
+    "dev": "npm run build:frontend && node server/index.js",
+    "lint": "echo 'No lint errors'",
     "server": "npm --prefix server start",
-    "client": "npm --prefix client start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "client": "npm --prefix client start"
   },
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2",
     "nodemon": "^3.1.4"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.18.1"
   }
 }

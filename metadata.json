@@ -1,0 +1,8 @@
+{
+  "name": "Real-Time Chat App",
+  "description": "Real-time chat application with multiple rooms, Google OAuth, and audio built with React, Express, and Socket.IO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

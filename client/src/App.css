@@ -411,7 +411,7 @@ button:active {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .popup-overlay .login-form {
@@ -438,21 +438,30 @@ button:active {
 }
 
 .delete-btn {
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s, color 0.2s;
-  color: #ff4d4d;
-  width: auto;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+  color: #888888;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: auto;
+  opacity: 0.75;
 }
 
 .delete-btn:hover {
-  background-color: #ff4d4d;
-  color: #fff;
+  color: #ff3b30;
+  background-color: rgba(255, 59, 48, 0.12);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.delete-btn:active {
+  transform: scale(0.95);
 }
 
 /* Dashboard styles */
