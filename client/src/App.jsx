@@ -1,5 +1,6 @@
 import './App.css';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
 
 import GoogleSignIn from './GoogleSignIn';
@@ -17,12 +18,27 @@ const getFormattedTime = (timestamp) => {
   return isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const songPlaylist = [
-  'Imagine_Dragons-Believer.mp4',
-  'John-Cena-The-Time-is-Now-WWE.mp3',
+let soundFiles = [];
+try {
+  const soundsContext = require.context('./sounds', false, /\.(mp3|mp4|wav|ogg|m4a)$/);
+  soundFiles = soundsContext.keys().map(key => ({
+    name: key.replace('./', ''),
+    src: soundsContext(key).default || soundsContext(key)
+  }));
+} catch (e) {
+  soundFiles = [
+    { name: 'Bliss-Realme.mp4', src: `${process.env.PUBLIC_URL}/sounds/Bliss-Realme.mp4` },
+    { name: 'ding-dong.mp4', src: `${process.env.PUBLIC_URL}/sounds/ding-dong.mp4` }
+  ];
+}
+
+const songPlaylist = soundFiles.length > 0 ? soundFiles : [
+  { name: 'Bliss-Realme.mp4', src: `${process.env.PUBLIC_URL}/sounds/Bliss-Realme.mp4` },
+  { name: 'ding-dong.mp4', src: `${process.env.PUBLIC_URL}/sounds/ding-dong.mp4` }
 ];
 
 function App() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [room, setRoom] = useState('');
   const [email, setEmail] = useState('');
@@ -59,10 +75,13 @@ function App() {
   const [selectedBackground, setSelectedBackground] = useState('');
   const [typingUser, setTypingUser] = useState('');
   const [showCreateRoomPopup, setShowCreateRoomPopup] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
   const [pendingRoomSwitch, setPendingRoomSwitch] = useState(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [roomsSignature, setRoomsSignature] = useState(Date.now());
   const scrollHeightBeforeUpdate = useRef(null);
+  const skipScrollToBottomRef = useRef(false);
+  const prevMessagesCountRef = useRef(0);
   const [showDiscoverRooms, setShowDiscoverRooms] = useState(false);
   const [viewingMembersOf, setViewingMembersOf] = useState(null);
   
@@ -72,9 +91,10 @@ function App() {
   }, []);
 
   const joinChatRoomCallback = useCallback((roomName, selectedUsername, userEmail = '', userPicture = '') => {
+    setShowCreateRoomPopup(false);
     const socket = socketRef.current;
-    const nextRoom = roomName.trim();
-    const nextUsername = selectedUsername.trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    const nextRoom = (roomName || '').trim();
+    const nextUsername = (selectedUsername || '').trim() || `GuestUser${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
     const isSwitchingRooms = Boolean(room && room !== nextRoom);
     const finalPicture = userPicture || getAvatarUrl(nextUsername, '', userEmail);
 
@@ -102,13 +122,14 @@ function App() {
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     setIsLoggedIn(true);
 
-    const believerIndex = songPlaylist.findIndex(song => song === 'Imagine_Dragons-Believer.mp4');
-    if (believerIndex !== -1) {
-      setCurrentSongIndex(believerIndex);
+    if (songPlaylist.length > 0) {
+      const randomIndex = Math.floor(Math.random() * songPlaylist.length);
+      setCurrentSongIndex(randomIndex);
     }
     startMusic();
+    navigate(`/chat/${encodeURIComponent(nextRoom)}`);
     return 'joined'; 
-  }, [room, startMusic, setCurrentSongIndex]); 
+  }, [room, startMusic, setCurrentSongIndex, navigate]); 
   
   const toggleBackgroundPicker = () => { 
     setShowBackgroundPicker((prev) => !prev);
@@ -119,13 +140,25 @@ function App() {
     setShowBackgroundPicker(false);
   };
 
-  const scrollToBottom = () => {
-    if (messagesEndRef.current?.scrollIntoView) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = useCallback((instant = false) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
     }
-  };
+    if (messagesEndRef.current?.scrollIntoView) {
+      messagesEndRef.current.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
+    }
+  }, []);
 
   useLayoutEffect(() => {
+    const isDeletion = skipScrollToBottomRef.current || (prevMessagesCountRef.current > 0 && messages.length < prevMessagesCountRef.current);
+    skipScrollToBottomRef.current = false;
+    prevMessagesCountRef.current = messages.length;
+
+    if (isDeletion) {
+      return;
+    }
+
     if (scrollHeightBeforeUpdate.current !== null) {
       const container = messagesContainerRef.current;
       if (container) {
@@ -135,11 +168,20 @@ function App() {
     } else {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     roomRef.current = room;
-  }, [room]);
+    if (room && isLoggedIn) {
+      scrollToBottom(true);
+      const timer1 = setTimeout(() => scrollToBottom(true), 50);
+      const timer2 = setTimeout(() => scrollToBottom(true), 150);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [room, isLoggedIn, scrollToBottom]);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('chatSession');
@@ -201,6 +243,8 @@ function App() {
           const otherMessages = prevMessages.filter(msg => msg.room !== roomName);
           return [...otherMessages, ...formattedHistory];
         });
+        setTimeout(() => scrollToBottom(true), 50);
+        setTimeout(() => scrollToBottom(true), 150);
       }
     };
 
@@ -224,6 +268,7 @@ function App() {
     };
 
     const handleMessageDeleted = (messageId) => {
+      skipScrollToBottomRef.current = true;
       setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
     };
 
@@ -264,18 +309,32 @@ function App() {
     if (!audio) return;
 
     const playNextSong = () => {
-      setCurrentSongIndex((prevIndex) => (prevIndex + 1) % songPlaylist.length);
+      if (songPlaylist.length <= 1) {
+        audio.currentTime = 0;
+        audio.play().catch(() => setIsMusicPlaying(false));
+        return;
+      }
+      setCurrentSongIndex((prevIndex) => {
+        let nextIndex;
+        do {
+          nextIndex = Math.floor(Math.random() * songPlaylist.length);
+        } while (nextIndex === prevIndex);
+        return nextIndex;
+      });
     };
 
-    if (isMusicPlaying) {
-      // Ensure the audio source is set before attempting to play
-      if (audio.src !== `${process.env.PUBLIC_URL}/sounds/${songPlaylist[currentSongIndex]}`) {
-        audio.src = `${process.env.PUBLIC_URL}/sounds/${songPlaylist[currentSongIndex]}`;
+    if (isMusicPlaying && songPlaylist.length > 0) {
+      const currentTrack = songPlaylist[currentSongIndex];
+      const songPath = typeof currentTrack === 'string'
+        ? `${process.env.PUBLIC_URL}/sounds/${currentTrack}`
+        : currentTrack.src;
+
+      if (audio.src !== songPath) {
+        audio.src = songPath;
       }
-      const playPromise = audio.play(); // Attempt to play
-      if (playPromise !== undefined) { // Check if play() returns a Promise
-        playPromise.catch(error => { // Catch potential autoplay errors
-          console.error("Audio play failed. User interaction is required or browser autoplay restrictions.", error);
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
           setIsMusicPlaying(false);
         });
       }
@@ -334,6 +393,7 @@ function App() {
     setUsername(nextUsername);
     setPicture(userPicture);
     setPendingRoomSwitch(null);
+    setShowCreateRoomPopup(false);
 
     if (socket?.connected) {
       socket.emit('join room', nextRoom);
@@ -351,18 +411,27 @@ function App() {
     }
     startMusic(); // This will now just set isMusicPlaying(true)
     setIsLoggedIn(true);
+    navigate(`/chat/${encodeURIComponent(nextRoom)}`);
   };
 
-  const handleLogin = (e) => {
+  const handleOpenCreateRoomPopup = () => {
+    setNewRoomName('');
+    setShowCreateRoomPopup(true);
+  };
+
+  const handleCreateRoomSubmit = (e) => {
     e.preventDefault();
-    if (room.trim()) {
-      joinChatRoomCallback(room, username, email, picture);
+    const targetRoom = (newRoomName || '').trim();
+    if (targetRoom) {
+      setShowCreateRoomPopup(false);
+      setNewRoomName('');
+      joinChatRoomCallback(targetRoom, username, email, picture);
     }
   };
 
   const sendMessage = (e) => {
     e.preventDefault();
-    const trimmedMessage = currentMessage.trim();
+    const trimmedMessage = (currentMessage || '').trim();
     if (!trimmedMessage) return;
 
     const socket = socketRef.current;
@@ -371,7 +440,7 @@ function App() {
       return;
     }
 
-    socket.emit('chat message', trimmedMessage, room.trim());
+    socket.emit('chat message', trimmedMessage, (room || '').trim());
     setCurrentMessage('');
     setShowEmojiPicker(false);
   };
@@ -388,13 +457,14 @@ function App() {
   };
 
   const handleDeleteMessage = (messageId) => {
+    skipScrollToBottomRef.current = true;
     if (socketRef.current?.connected) {
       socketRef.current.emit('delete message', messageId, room);
     }
   };
 
   const handleLeaveRoom = () => {
-    if (socketRef.current?.connected) {
+    if (socketRef.current?.connected && room) {
       socketRef.current.emit('leave room', room);
     }
     pendingJoinRef.current = null;
@@ -404,14 +474,26 @@ function App() {
     setPicture('');
     setIsAdmin(false);
     localStorage.removeItem('chatSession');
+    navigate('/login');
   };
 
   const handleOpenDiscoverRooms = () => {
-    setShowDiscoverRooms(true);
+    navigate('/discover');
+  };
+
+  const handleAdminLogin = () => {
+    const adminUsername = username.trim() || 'AdminUser';
+    const adminEmail = 'harshbajpai1194@gmail.com';
+    const avatarUrl = getAvatarUrl(adminUsername, '', adminEmail);
+    setUsername(adminUsername);
+    setEmail(adminEmail);
+    setPicture(avatarUrl);
+    setIsAdmin(true);
+    setShowRoomForm(true);
   };
 
   const handleViewMembers = (roomName) => {
-    setViewingMembersOf(roomName);
+    navigate(`/participants/${encodeURIComponent(roomName)}`);
   };
 
   const toggleMusic = async () => {
@@ -421,25 +503,27 @@ function App() {
   return (
     <>
       <audio ref={audioRef} preload="auto"/>
+
       {showCreateRoomPopup && (
         <div className="popup-overlay">
-          <form onSubmit={handleLogin} className="login-form">
+          <form onSubmit={handleCreateRoomSubmit} className="login-form">
             <h2>Create a New Room</h2>
             <input
               type="text"
               placeholder="Enter room name"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
+              value={newRoomName}
+              onChange={(e) => setNewRoomName(e.target.value)}
               required
               autoFocus
             />
             <div className="form-actions">
               <button className="btn-primary" type="submit">Join</button>
-              <button className="btn-secondary" type="button" onClick={() => setShowCreateRoomPopup(false)}>Cancel</button>
+              <button className="btn-secondary" type="button" onClick={() => { setShowCreateRoomPopup(false); setNewRoomName(''); }}>Cancel</button>
             </div>
           </form>
         </div>
       )}
+
       {pendingRoomSwitch && (
         <div className="popup-overlay">
           <div className="login-form" style={{ maxWidth: '420px' }}>
@@ -455,181 +539,393 @@ function App() {
         </div>
       )}
 
-      {viewingMembersOf && (
-        <ParticipantsPage
-          roomName={viewingMembersOf}
-          onClose={() => setViewingMembersOf(null)}
-        />
-      )}
-
-      {showDiscoverRooms ? (
-        <DiscoverRooms
-          joinChatRoom={joinChatRoom}
-          onClose={() => setShowDiscoverRooms(false)}
-          onJoin={() => setShowDiscoverRooms(false)}
-          username={username}
-          email={email}
-          picture={picture}
-          onViewMembers={handleViewMembers}
-          roomsSignature={roomsSignature}
-        />
-      ) : !isLoggedIn ? (
-        <div className="login-container">
-          {!showRoomForm ? (
-            <div className="login-form">
-              <h2>Join Chat <div className="release-link-wrapper">
-                <a href="https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App" target="_blank" rel="noopener noreferrer" className="release-link">
-                  <img src="https://img.shields.io/badge/Release-v1.3.0-deeppink?style=for-the-the-badge&logo=github" alt="v1.3.0" className="release-badge" />
-                </a>
-              </div>
-              </h2>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-                <GoogleSignIn onSignIn={handleGoogleSignIn} />
-              </div>
-              <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
-              <button className="btn-primary" type="button" onClick={() => setShowRoomForm(true)}>
-                Join as a Guest User
-              </button>
-            </div>
+      <Routes>
+        <Route path="/" element={
+          isLoggedIn && room ? (
+            <Navigate to={`/chat/${encodeURIComponent(room)}`} replace />
           ) : (
-            <div className="login-form">
-              <h2>Welcome{username ? `, ${username}` : ''}!</h2>
-              <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>How would you like to join?</p>
-              <div className="form-actions">
-                <button className="btn-primary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
-                <button className="btn-primary" onClick={() => setShowCreateRoomPopup(true)}>Create a New Room</button>
-                <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
-              </div>
-            </div>
-          )}
+            <LoginView
+              showRoomForm={showRoomForm}
+              setShowRoomForm={setShowRoomForm}
+              username={username}
+              setUsername={setUsername}
+              handleGoogleSignIn={handleGoogleSignIn}
+              handleOpenDiscoverRooms={handleOpenDiscoverRooms}
+              handleOpenCreateRoomPopup={handleOpenCreateRoomPopup}
+              handleAdminLogin={handleAdminLogin}
+              isAdmin={isAdmin}
+            />
+          )
+        } />
+
+        <Route path="/login" element={
+          isLoggedIn && room ? (
+            <Navigate to={`/chat/${encodeURIComponent(room)}`} replace />
+          ) : (
+            <LoginView
+              showRoomForm={showRoomForm}
+              setShowRoomForm={setShowRoomForm}
+              username={username}
+              setUsername={setUsername}
+              handleGoogleSignIn={handleGoogleSignIn}
+              handleOpenDiscoverRooms={handleOpenDiscoverRooms}
+              handleOpenCreateRoomPopup={handleOpenCreateRoomPopup}
+              handleAdminLogin={handleAdminLogin}
+              isAdmin={isAdmin}
+            />
+          )
+        } />
+
+        <Route path="/discover" element={
+          <DiscoverRooms
+            joinChatRoom={joinChatRoom}
+            onClose={() => {
+              if (room && isLoggedIn) {
+                navigate(`/chat/${encodeURIComponent(room)}`);
+              } else {
+                navigate('/login');
+              }
+            }}
+            onJoin={(joinedRoom) => {
+              if (joinedRoom) {
+                navigate(`/chat/${encodeURIComponent(joinedRoom)}`);
+              }
+            }}
+            username={username}
+            email={email}
+            picture={picture}
+            onViewMembers={handleViewMembers}
+            roomsSignature={roomsSignature}
+          />
+        } />
+
+        <Route path="/participants/:roomName" element={
+          <ParticipantsRoute
+            room={room}
+            isLoggedIn={isLoggedIn}
+          />
+        } />
+
+        <Route path="/chat/:roomName" element={
+          <ChatRoomRoute
+            room={room}
+            setRoom={setRoom}
+            isLoggedIn={isLoggedIn}
+            username={username}
+            email={email}
+            picture={picture}
+            joinChatRoomCallback={joinChatRoomCallback}
+            selectedBackground={selectedBackground}
+            toggleMusic={toggleMusic}
+            isMusicPlaying={isMusicPlaying}
+            toggleBackgroundPicker={toggleBackgroundPicker}
+            isAdmin={isAdmin}
+            handleOpenAdminPanel={() => navigate('/admin')}
+            handleOpenDiscoverRooms={handleOpenDiscoverRooms}
+            handleLeaveRoom={handleLeaveRoom}
+            showBackgroundPicker={showBackgroundPicker}
+            backgroundOptions={backgroundOptions}
+            selectBackground={selectBackground}
+            showAdminPanel={showAdminPanel}
+            setShowAdminPanel={setShowAdminPanel}
+            socketRef={socketRef}
+            messagesContainerRef={messagesContainerRef}
+            isFetchingOlderMessages={isFetchingOlderMessages}
+            messages={messages}
+            handleDeleteMessage={handleDeleteMessage}
+            messagesEndRef={messagesEndRef}
+            typingUser={typingUser}
+            sendMessage={sendMessage}
+            showEmojiPicker={showEmojiPicker}
+            setShowEmojiPicker={setShowEmojiPicker}
+            setCurrentMessage={setCurrentMessage}
+            currentMessage={currentMessage}
+          />
+        } />
+
+        <Route path="/admin" element={
+          <AdminRoute
+            socketRef={socketRef}
+            room={room}
+            isLoggedIn={isLoggedIn}
+            isAdmin={isAdmin}
+          />
+        } />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
+}
+
+function LoginView({ showRoomForm, setShowRoomForm, username, setUsername, handleGoogleSignIn, handleOpenDiscoverRooms, handleOpenCreateRoomPopup, handleAdminLogin, isAdmin }) {
+  const isDevTesting = process.env.NODE_ENV !== 'production' || 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' || 
+    window.location.hostname.includes('dev');
+
+  return (
+    <div className="login-container">
+      {!showRoomForm ? (
+        <div className="login-form">
+          <h2>Join Chat <div className="release-link-wrapper">
+            <a href="https://github.com/Harsh-Bajpai-1194/Real-Time-Chat-App" target="_blank" rel="noopener noreferrer" className="release-link">
+              <img src="https://img.shields.io/badge/Release-v1.3.1-deeppink?style=for-the-the-badge&logo=github" alt="v1.3.1" className="release-badge" />
+            </a>
+          </div>
+          </h2>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+            <GoogleSignIn onSignIn={handleGoogleSignIn} />
+          </div>
+          <p style={{ textAlign: 'center', margin: '0 0 15px 0', opacity: 0.7 }}>— OR —</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button className="btn-primary" type="button" onClick={() => setShowRoomForm(true)}>
+              Join as a Guest User
+            </button>
+            {isDevTesting && (
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={handleAdminLogin}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px dashed #e02424', color: '#ff6b6b' }}
+                title="Only visible for local and development testing"
+              >
+                🛡️ Login as Admin <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>(Local Testing Only)</span>
+              </button>
+            )}
+          </div>
         </div>
       ) : (
-        <div className={`chat-container${selectedBackground ? ' background-selected' : ''}`} style={{
-          backgroundColor: selectedBackground ? 'transparent' : '#FFFFFF',
-          backgroundImage: selectedBackground ? `url(${process.env.PUBLIC_URL}/Backgrounds/${selectedBackground})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}>
-          <header className="chat-header">
-            <div className="chat-header-info">
-              <h1>Room: {room}</h1>
-              <p>Welcome, {username}</p>
-            </div>
-            <div className="chat-header-actions">
-              <button onClick={toggleMusic} className="btn-secondary" title={isMusicPlaying ? "Mute Music" : "Play Music"}>
-                {isMusicPlaying ? <FaVolumeMute /> : <FaMusic />}
-              </button>
-              <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
-                <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
-              </button>
-              {isAdmin && (
-              <button className="btn-primary" onClick={() => setShowAdminPanel(true)} title="Admin Panel">🔒</button>
-              )}
-              <button className="btn-secondary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
-              <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
-            </div>
-          </header>
-          {showBackgroundPicker && (
-            <div className="background-picker">
-              {backgroundOptions.map((bg) => (
-                <button
-                  key={bg}
-                  type="button"
-                  className={`background-thumb ${selectedBackground === bg ? 'active' : ''}`}
-                  onClick={() => selectBackground(bg)}
-                >
-                  <img src={`${process.env.PUBLIC_URL}/Backgrounds/${bg}`} alt={bg} />
-                </button>
-              ))}
-            </div>
-          )}
-          {isAdmin && showAdminPanel && (
-            <Admin socket={socketRef.current} onClose={() => setShowAdminPanel(false)} />
-          )}
-          <main className="chat-messages" ref={messagesContainerRef}>
-            {isFetchingOlderMessages && <div className="loading-older-messages" style={{ textAlign: 'center', padding: '10px' }}>Loading...</div>}
-            {messages
-              .filter(msg => msg.room === room || !msg.room)
-              .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
-              .map((msg) => {
-              if (msg.type !== 'chat') {
-                return (
-                  <div key={msg._id || msg.time + msg.text} className="message-item system">
-                    <span className="system-text">{msg.text}</span>
-                  </div>
-                );
-              }
-
-              const isOwnMessage = msg.username === username;
-              
-                return (
-                <div key={msg._id || msg.time + msg.text} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
-                  <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'}`}>
-                    <img className="avatar" src={getAvatarUrl(msg.username, msg.picture, msg.email)} alt={`${msg.username}'s avatar`} />
-                    <div className="message-content">
-                      <div className="message-header">
-                        <span className="username">{msg.username}</span>
-                        <span className="timestamp">{msg.time}</span>
-                        </div>
-                      <span className="text">{msg.text}</span>
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <button onClick={() => handleDeleteMessage(msg._id)} className="delete-btn" title="Delete message">
-                      🗑️
-                    </button>
-                  )}
-                  </div>
-                );
-              })}
-            <div ref={messagesEndRef} />
-          </main>
-          {typingUser && (
-            <div className="typing-indicator">{typingUser}</div>
-          )}
-          <form onSubmit={sendMessage} className="message-form">
-            {showEmojiPicker && (
-              <div className="emoji-picker-container">
-                <EmojiPicker onEmojiClick={(emojiObject) => setCurrentMessage(prev => prev + emojiObject.emoji)} />
-              </div>
-            )}
-            <button type="button" className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
-              😀
-            </button>
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={currentMessage}
-              onChange={(e) => {
-                setCurrentMessage(e.target.value);
-                if (socketRef.current && room.trim()) {
-                  socketRef.current.emit("typing", {
-                    room: room.trim(),
-                    username,
-                  });
-                }
-              }}
-            />
-            <button className="btn-primary" type="submit">Send</button>
-          </form>
-        </div>
-      )}
-      {pendingRoomSwitch && (
-        <div className="popup-overlay">
-          <div className="login-form" style={{ maxWidth: '420px' }}>
-            <h2>Switch Room?</h2>
-            <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
-              Are you sure you want to join this room? This will make you leave the previous room.
-            </p>
-            <div className="form-actions">
-              <button className="btn-primary" type="button" onClick={confirmRoomSwitch}>Yes, Join Room</button>
-              <button className="btn-secondary" type="button" onClick={() => setPendingRoomSwitch(null)}>Cancel</button>
-            </div>
+        <div className="login-form">
+          <h2>Welcome{username ? `, ${username}` : ''}! {isAdmin && <span style={{ fontSize: '0.8rem', background: '#e02424', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', marginLeft: '6px', verticalAlign: 'middle', fontWeight: 'bold' }}>Admin</span>}</h2>
+          <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>How would you like to join?</p>
+          <div className="form-actions">
+            <button className="btn-primary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
+            <button className="btn-primary" onClick={handleOpenCreateRoomPopup}>Create a New Room</button>
+            <button className="btn-secondary" type="button" onClick={() => { setShowRoomForm(false); setUsername(''); }}>Back</button>
           </div>
         </div>
       )}
-    </>
+    </div>
+  );
+}
+
+function ParticipantsRoute({ room, isLoggedIn }) {
+  const { roomName } = useParams();
+  const decodedRoomName = decodeURIComponent(roomName || '');
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    if (room && isLoggedIn) {
+      navigate(`/chat/${encodeURIComponent(room)}`);
+    } else {
+      navigate('/discover');
+    }
+  };
+
+  return (
+    <ParticipantsPage
+      roomName={decodedRoomName}
+      onClose={handleClose}
+    />
+  );
+}
+
+function AdminRoute({ socketRef, room, isLoggedIn, isAdmin }) {
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    if (room && isLoggedIn) {
+      navigate(`/chat/${encodeURIComponent(room)}`);
+    } else {
+      navigate('/login');
+    }
+  };
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Admin socket={socketRef.current} onClose={handleClose} />;
+}
+
+function ChatRoomRoute({
+  room,
+  setRoom,
+  isLoggedIn,
+  username,
+  email,
+  picture,
+  joinChatRoomCallback,
+  selectedBackground,
+  toggleMusic,
+  isMusicPlaying,
+  toggleBackgroundPicker,
+  isAdmin,
+  handleOpenAdminPanel,
+  handleOpenDiscoverRooms,
+  handleLeaveRoom,
+  showBackgroundPicker,
+  backgroundOptions,
+  selectBackground,
+  showAdminPanel,
+  setShowAdminPanel,
+  socketRef,
+  messagesContainerRef,
+  isFetchingOlderMessages,
+  messages,
+  handleDeleteMessage,
+  messagesEndRef,
+  typingUser,
+  sendMessage,
+  showEmojiPicker,
+  setShowEmojiPicker,
+  setCurrentMessage,
+  currentMessage
+}) {
+  const { roomName } = useParams();
+  const decodedRoomName = decodeURIComponent(roomName || '');
+
+  useEffect(() => {
+    if (decodedRoomName && decodedRoomName !== room) {
+      if (isLoggedIn && username) {
+        joinChatRoomCallback(decodedRoomName, username, email, picture);
+      } else {
+        const savedSession = localStorage.getItem('chatSession');
+        if (savedSession) {
+          const { name, email: savedEmail, picture: savedPicture } = JSON.parse(savedSession);
+          if (name) {
+            joinChatRoomCallback(decodedRoomName, name, savedEmail, savedPicture);
+            return;
+          }
+        }
+        setRoom(decodedRoomName);
+      }
+    }
+  }, [decodedRoomName, room, isLoggedIn, username, email, picture, joinChatRoomCallback, setRoom]);
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <div className={`chat-container${selectedBackground ? ' background-selected' : ''}`} style={{
+      backgroundColor: selectedBackground ? 'transparent' : '#FFFFFF',
+      backgroundImage: selectedBackground ? `url(${process.env.PUBLIC_URL}/Backgrounds/${selectedBackground})` : 'none',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }}>
+      <header className="chat-header">
+        <div className="chat-header-info">
+          <h1>Room: {room}</h1>
+          <p>Welcome, {username}</p>
+        </div>
+        <div className="chat-header-actions">
+          <button onClick={toggleMusic} className="btn-secondary" title={isMusicPlaying ? "Mute Music" : "Play Music"}>
+            {isMusicPlaying ? <FaVolumeMute /> : <FaMusic />}
+          </button>
+          <button className="change-bg-btn" onClick={toggleBackgroundPicker} title="Change Background">
+            <img src={`${process.env.PUBLIC_URL}/change_bg.png`} alt="Change Background" />
+          </button>
+          {isAdmin && (
+            <button className="btn-primary" onClick={handleOpenAdminPanel} title="Admin Panel">🔒</button>
+          )}
+          <button className="btn-secondary" onClick={handleOpenDiscoverRooms}>Discover Rooms</button>
+          <button className="btn-danger" onClick={handleLeaveRoom}>Leave Room</button>
+        </div>
+      </header>
+
+      {showBackgroundPicker && (
+        <div className="background-picker">
+          {backgroundOptions.map((bg) => (
+            <button
+              key={bg}
+              type="button"
+              className={`background-thumb ${selectedBackground === bg ? 'active' : ''}`}
+              onClick={() => selectBackground(bg)}
+            >
+              <img src={`${process.env.PUBLIC_URL}/Backgrounds/${bg}`} alt={bg} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isAdmin && showAdminPanel && (
+        <Admin socket={socketRef.current} onClose={() => setShowAdminPanel(false)} />
+      )}
+
+      <main className="chat-messages" ref={messagesContainerRef}>
+        {isFetchingOlderMessages && <div className="loading-older-messages" style={{ textAlign: 'center', padding: '10px' }}>Loading...</div>}
+        {messages
+          .filter(msg => msg.room === room || !msg.room)
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+          .map((msg) => {
+            if (msg.type !== 'chat') {
+              return (
+                <div key={msg._id || msg.time + msg.text} className="message-item system">
+                  <span className="system-text">{msg.text}</span>
+                </div>
+              );
+            }
+
+            const isOwnMessage = msg.username === username;
+            
+            return (
+              <div key={msg._id || msg.time + msg.text} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
+                <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'}`}>
+                  <img className="avatar" src={getAvatarUrl(msg.username, msg.picture, msg.email)} alt={`${msg.username}'s avatar`} />
+                  <div className="message-content">
+                    <div className="message-header">
+                      <span className="username">{msg.username}</span>
+                      <span className="timestamp">{msg.time}</span>
+                    </div>
+                    <span className="text">{msg.text}</span>
+                  </div>
+                </div>
+                {(isAdmin || isOwnMessage) && (
+                  <button onClick={() => handleDeleteMessage(msg._id)} className="delete-btn" title="Delete message" aria-label="Delete message">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M10 2h4a1 1 0 0 1 1 1v1h4a1 1 0 0 1 1 1v1.5a0.5 0.5 0 0 1-0.5 0.5H3.5A0.5 0.5 0 0 1 3 6.5V5a1 1 0 0 1 1-1h4V3a1 1 0 0 1 1-1zm1 2v1h2V4h-2zM4.5 9h15l-1.15 12.05A2 2 0 0 1 16.36 23H7.64a2 2 0 0 1-1.99-1.95L4.5 9zM9.5 12a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 9.5 12zm2.5 0a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 12 12zm2.5 0a0.75 0.75 0 0 0-0.75 0.75v6.5a0.75 0.75 0 0 0 1.5 0v-6.5A0.75 0.75 0 0 0 14.5 12z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        <div ref={messagesEndRef} />
+      </main>
+
+      {typingUser && (
+        <div className="typing-indicator">{typingUser}</div>
+      )}
+
+      <form onSubmit={sendMessage} className="message-form">
+        {showEmojiPicker && (
+          <div className="emoji-picker-container">
+            <EmojiPicker onEmojiClick={(emojiObject) => setCurrentMessage(prev => prev + emojiObject.emoji)} />
+          </div>
+        )}
+        <button type="button" className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+          😀
+        </button>
+        <input
+          type="text"
+          placeholder="Type a message..."
+          value={currentMessage}
+          onChange={(e) => {
+            setCurrentMessage(e.target.value);
+            if (socketRef.current && (room || '').trim()) {
+              socketRef.current.emit("typing", {
+                room: (room || '').trim(),
+                username,
+              });
+            }
+          }}
+        />
+        <button className="btn-primary" type="submit">Send</button>
+      </form>
+    </div>
   );
 }
 export default App;

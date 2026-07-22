@@ -21,22 +21,30 @@
   text-align: center;
 }
 
-.back-link {
+.close-btn {
   position: absolute;
-  left: 48px;
-  background: none;
-  border: none;
-  font-size: 1rem;
-  color: #007bff;
-  cursor: pointer;
-  text-decoration: none;
-  padding: 8px 12px;
+  top: 16px;
+  right: 24px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
   border-radius: 6px;
-  transition: background-color 0.2s ease;
+  width: 36px;
+  height: 36px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #495057;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.back-link:hover {
-  background-color: #f0f0f0;
+.close-btn:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
 }
 
 .members-list {

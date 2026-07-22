@@ -16,8 +16,13 @@ const GoogleSignIn = ({ onSignIn }) => {
         }
     };
 
-    // Add a mock login for development to make testing easier
-    if (process.env.NODE_ENV === 'development') {
+    const isDev = process.env.NODE_ENV !== 'production' || 
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.includes('dev');
+
+    // Add a mock login for development/local testing to make testing easier
+    if (isDev) {
         const handleMockSignIn = () => {
             onSignIn({
                 name: 'Mock Admin',
