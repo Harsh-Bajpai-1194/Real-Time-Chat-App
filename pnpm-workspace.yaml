@@ -1,0 +1,6 @@
+packages:
+  - 'client'
+  - 'server'
+allowBuilds:
+  core-js: true
+  core-js-pure: true

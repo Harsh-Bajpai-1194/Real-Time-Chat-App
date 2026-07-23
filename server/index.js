@@ -1,10 +1,13 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Force Node.js to use Google's public DNS
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
 
-// Load environment variables from the .env file in the project root
+// Load environment variables from the .env file in the project root or local folder
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const fs = require('fs');
 const Filter = require('bad-words');
@@ -23,7 +26,7 @@ const io = socketIo(server, {
 });
 
 const filter = new Filter();
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.REACT_APP_GOOGLE_CLIENT_ID);
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'harshbajpai1194@gmail.com';
 
 /**
@@ -164,10 +167,15 @@ mongoose.connection.on('disconnected', () => {
     scheduleReconnect();
 });
 
+const escapeRegex = (string) => {
+    return (string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 const saveMessageToStore = async (messageData) => {
-    const room = messageData.room;
+    const room = (messageData.room || '').trim();
+    const normalizedData = { ...messageData, room, timestamp: messageData.timestamp || new Date() };
     const messages = roomMessages.get(room) || [];
-    messages.push({ ...messageData, timestamp: messageData.timestamp || new Date() });
+    messages.push(normalizedData);
     if (messages.length > 250) {
         messages.splice(0, messages.length - 250);
     }
@@ -175,56 +183,81 @@ const saveMessageToStore = async (messageData) => {
 
     if (isMongoAvailable()) {
         try {
-            const message = new Message(messageData);
+            const message = new Message(normalizedData);
             await message.save();
-            return message.toObject();
+            return typeof message.toObject === 'function' ? message.toObject() : message;
         } catch (error) {
             console.error('Error saving message to database:', error.message);
         }
     }
 
-    return { ...messageData, _id: new mongoose.Types.ObjectId().toString() };
+    return { ...normalizedData, _id: new mongoose.Types.ObjectId().toString() };
 };
 
 const getRoomHistory = async (room) => {
+    const trimmedRoom = (room || '').trim();
+    if (!trimmedRoom) return [];
+
     if (isMongoAvailable()) {
         try {
             const history = await Message.find({
-                room: { $regex: new RegExp(`^${room.trim()}$`, 'i') }
+                room: { $regex: new RegExp(`^${escapeRegex(trimmedRoom)}$`, 'i') }
             })
             .sort({ timestamp: -1 })
-            .limit(50);
-            return history.reverse();
+            .limit(50)
+            .lean();
+
+            if (history && history.length > 0) {
+                return history.reverse();
+            }
         } catch (error) {
-            console.error(`Error fetching chat history for room "${room}":`, error);
+            console.error(`Error fetching chat history for room "${trimmedRoom}":`, error.message);
         }
     }
 
-    return (roomMessages.get(room) || []).slice(-50);
+    // Fallback to in-memory store
+    const inMem = roomMessages.get(trimmedRoom);
+    if (inMem && inMem.length > 0) {
+        return inMem.slice(-50);
+    }
+
+    // Case-insensitive lookup in memory store
+    for (const [k, msgs] of roomMessages.entries()) {
+        if (k.toLowerCase() === trimmedRoom.toLowerCase() && msgs.length > 0) {
+            return msgs.slice(-50);
+        }
+    }
+
+    return [];
 };
 
 const getOlderRoomHistory = async (room, lastMessageId) => {
     if (!lastMessageId) return [];
+    const trimmedRoom = (room || '').trim();
 
     if (isMongoAvailable()) {
         try {
-            const lastMessage = await Message.findById(lastMessageId);
-            if (!lastMessage) return [];
+            const lastMessage = await Message.findById(lastMessageId).lean();
+            if (lastMessage) {
+                const olderMessages = await Message.find({
+                    room: { $regex: new RegExp(`^${escapeRegex(trimmedRoom)}$`, 'i') },
+                    timestamp: { $lt: lastMessage.timestamp }
+                })
+                .sort({ timestamp: -1 })
+                .limit(50)
+                .lean();
 
-            const olderMessages = await Message.find({
-                room: { $regex: new RegExp(`^${room.trim()}$`, 'i') },
-                timestamp: { $lt: lastMessage.timestamp }
-            }).sort({ timestamp: -1 }).limit(50);
-
-            return olderMessages.reverse();
+                if (olderMessages && olderMessages.length > 0) {
+                    return olderMessages.reverse();
+                }
+            }
         } catch (error) {
             console.error('Error fetching older messages:', error.message);
-            return [];
         }
     }
 
-    const allMessages = roomMessages.get(room) || [];
-    const index = allMessages.findIndex((m) => m._id === lastMessageId);
+    const allMessages = roomMessages.get(trimmedRoom) || [];
+    const index = allMessages.findIndex((m) => String(m._id) === String(lastMessageId));
     if (index === -1) return [];
     return allMessages.slice(Math.max(0, index - 50), index);
 };
@@ -391,7 +424,7 @@ app.get('/api/rooms/:roomName/members', async (req, res) => {
       }
 
       const members = await Message.aggregate([
-        { $match: { room: { $regex: new RegExp(`^${roomName}$`, 'i') } } },
+        { $match: { room: { $regex: new RegExp(`^${escapeRegex(roomName)}$`, 'i') } } },
         {
           $group: {
             _id: { $ifNull: ['$email', '$username'] },
@@ -438,7 +471,7 @@ app.post('/api/auth/google', async (req, res) => {
     try {
         const ticket = await googleClient.verifyIdToken({
             idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
+            audience: process.env.REACT_APP_GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
         res.json({ success: true, user: { name: payload.name, email: payload.email, picture: payload.picture } });
@@ -515,7 +548,7 @@ io.on('connection', (socket) => {
 
         // Send recent chat history to the newly joined user
         const history = await getRoomHistory(normalizedRoom);
-        socket.emit('chat history', history, normalizedRoom);
+        socket.emit('chat history', Array.isArray(history) ? history : [], normalizedRoom);
     });
 
     socket.on('fetch older messages', async ({ room, lastMessageId }) => {
@@ -529,7 +562,7 @@ io.on('connection', (socket) => {
         }
 
         const olderMessages = await getOlderRoomHistory(normalizedRoom, lastMessageId);
-        socket.emit('older messages', olderMessages, normalizedRoom);
+        socket.emit('older messages', Array.isArray(olderMessages) ? olderMessages : [], normalizedRoom);
     });
 
     // Handle leaving rooms
@@ -601,7 +634,7 @@ if (fs.existsSync(buildIndexPath)) {
  */
 const startServer = async () => {
     await connectToDatabase(); // This function connects and then seeds/loads rooms.
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 7777;
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is ready and running on port ${PORT}`);
     });

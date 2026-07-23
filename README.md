@@ -47,9 +47,7 @@ A real-time chat application built with the **MERN** stack (**MongoDB**, **Expre
    Create a `.env` file in the root directory and add your variables. This file is used by the server.
    ```
    # For the React frontend (must start with REACT_APP_)
-   REACT_APP_GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
-   # For the Node.js backend (used for token verification)
-   GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
+   REACT_APP_GOOGLE_CLIENT_ID=your_client_id
    MONGO_URI=your_mongodb_connection_string
    ADMIN_EMAIL=your_admin_email@gmail.com
    PORT=7777

@@ -82,8 +82,6 @@ function App() {
   const scrollHeightBeforeUpdate = useRef(null);
   const skipScrollToBottomRef = useRef(false);
   const prevMessagesCountRef = useRef(0);
-  const [showDiscoverRooms, setShowDiscoverRooms] = useState(false);
-  const [viewingMembersOf, setViewingMembersOf] = useState(null);
   
   // startMusic MUST be declared before joinChatRoomCallback to avoid no-use-before-define error
   const startMusic = useCallback(() => {
@@ -111,7 +109,11 @@ function App() {
       socket.emit('join room', nextRoom);
       socket.emit('set username', nextUsername, nextRoom, userEmail, finalPicture);
     } else {
-      setMessages((prevMessages) => [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime() }]);
+      setMessages((prevMessages) => {
+        const hasConnectingMsg = prevMessages.some(m => m.text === 'Connecting to the chat server...' && (m.room || '').trim().toLowerCase() === nextRoom.toLowerCase());
+        if (hasConnectingMsg) return prevMessages;
+        return [...prevMessages, { text: 'Connecting to the chat server...', type: 'system', time: getFormattedTime(), room: nextRoom }];
+      });
     }
 
     setUsername(nextUsername);
@@ -219,12 +221,17 @@ function App() {
       if (pendingJoin) {
         newSocket.emit('join room', pendingJoin.room);
         newSocket.emit('set username', pendingJoin.username, pendingJoin.room, pendingJoin.email, pendingJoin.picture);
+      } else if (roomRef.current) {
+        newSocket.emit('join room', roomRef.current);
       }
     };
 
     const handleChatMessage = (message) => {
-      if (message.room === roomRef.current) {
-        setMessages((prevMessages) => [...prevMessages, { ...message, type: 'chat', time: getFormattedTime(message.timestamp) }]);
+      if (!message) return;
+      const currentRoom = (roomRef.current || '').trim().toLowerCase();
+      const msgRoom = (message.room || '').trim().toLowerCase();
+      if (!msgRoom || msgRoom === currentRoom) {
+        setMessages((prevMessages) => [...prevMessages, { ...message, room: message.room || roomRef.current, type: 'chat', time: getFormattedTime(message.timestamp) }]);
       }
     };
 
@@ -233,14 +240,21 @@ function App() {
     };
 
     const handleChatHistory = (history, roomName) => {
-      if (roomRef.current === roomName) {
-        const formattedHistory = history.map(msg => ({
+      const currentRoom = (roomRef.current || '').trim().toLowerCase();
+      const historyRoom = (roomName || '').trim().toLowerCase();
+      if (!currentRoom || currentRoom === historyRoom) {
+        const safeHistory = Array.isArray(history) ? history : [];
+        const formattedHistory = safeHistory.map(msg => ({
           ...msg,
+          room: msg.room || roomName,
           type: msg.username ? 'chat' : 'system', 
           time: getFormattedTime(msg.timestamp)
         }));
         setMessages(prevMessages => {
-          const otherMessages = prevMessages.filter(msg => msg.room !== roomName);
+          const otherMessages = prevMessages.filter(msg => {
+            if (!msg.room) return false;
+            return msg.room.trim().toLowerCase() !== historyRoom;
+          });
           return [...otherMessages, ...formattedHistory];
         });
         setTimeout(() => scrollToBottom(true), 50);
@@ -249,7 +263,9 @@ function App() {
     };
 
     const handleOlderMessages = (olderMessages, roomName) => {
-      if (roomRef.current === roomName && olderMessages.length > 0) {
+      const currentRoom = (roomRef.current || '').trim().toLowerCase();
+      const historyRoom = (roomName || '').trim().toLowerCase();
+      if (currentRoom === historyRoom && Array.isArray(olderMessages) && olderMessages.length > 0) {
         const container = messagesContainerRef.current;
         if (container) {
           scrollHeightBeforeUpdate.current = container.scrollHeight;
@@ -280,6 +296,10 @@ function App() {
     newSocket.on('rooms updated', handleRoomsUpdated);
     newSocket.on('message deleted', handleMessageDeleted);
 
+    if (newSocket.connected) {
+      handleConnect();
+    }
+
     newSocket.on("typing", (username) => {
       setTypingUser(`${username} is typing...`);
       if (typingTimeoutRef.current) {
@@ -302,7 +322,7 @@ function App() {
       newSocket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [scrollToBottom]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -404,7 +424,6 @@ function App() {
     localStorage.setItem('chatSession', JSON.stringify(sessionData));
     if (userEmail === 'harshbajpai1194@gmail.com') setIsAdmin(true);
     
-    setShowDiscoverRooms(false);
     const believerIndex = songPlaylist.findIndex(song => song === 'Imagine_Dragons-Believer.mp4');
     if (believerIndex !== -1) {
       setCurrentSongIndex(believerIndex);
@@ -858,12 +877,20 @@ function ChatRoomRoute({
       <main className="chat-messages" ref={messagesContainerRef}>
         {isFetchingOlderMessages && <div className="loading-older-messages" style={{ textAlign: 'center', padding: '10px' }}>Loading...</div>}
         {messages
-          .filter(msg => msg.room === room || !msg.room)
-          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
-          .map((msg) => {
+          .filter(msg => {
+            if (!msg.room) return true;
+            return msg.room.trim().toLowerCase() === (room || '').trim().toLowerCase();
+          })
+          .sort((a, b) => {
+            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return timeA - timeB;
+          })
+          .map((msg, idx) => {
+            const keyVal = msg._id || `${msg.timestamp || ''}-${msg.username || 'sys'}-${idx}`;
             if (msg.type !== 'chat') {
               return (
-                <div key={msg._id || msg.time + msg.text} className="message-item system">
+                <div key={keyVal} className="message-item system">
                   <span className="system-text">{msg.text}</span>
                 </div>
               );
@@ -872,7 +899,7 @@ function ChatRoomRoute({
             const isOwnMessage = msg.username === username;
             
             return (
-              <div key={msg._id || msg.time + msg.text} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
+              <div key={keyVal} className={`message-wrapper ${isOwnMessage ? 'own-message-wrapper' : ''}`}>
                 <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'}`}>
                   <img className="avatar" src={getAvatarUrl(msg.username, msg.picture, msg.email)} alt={`${msg.username}'s avatar`} />
                   <div className="message-content">
