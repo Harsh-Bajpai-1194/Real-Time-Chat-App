@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
 // Automatically import ALL .mp4 files from the './sounds' directory
-const soundContext = require.context('./sounds', false, /\.mp4$/);
-const allSounds = soundContext.keys().map(soundContext);
+let allSounds = [];
+try {
+  const soundContext = require.context('./sounds', false, /\.mp4$/);
+  allSounds = soundContext.keys().map(soundContext);
+} catch (error) {
+  allSounds = [];
+}
 
 // GLOBAL variable to track the audio even when this component is closed/unmounted
 let globalAudio = null;
