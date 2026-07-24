@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import './DiscoverRooms.css';
 
 // Automatically import ALL .mp4 files from the './sounds' directory
-const soundContext = require.context('./sounds', false, /\.mp4$/);
-const allSounds = soundContext.keys().map(soundContext);
+let allSounds = [];
+try {
+  const soundContext = require.context('./sounds', false, /\.mp4$/);
+  allSounds = soundContext.keys().map(soundContext);
+} catch (error) {
+  allSounds = [];
+}
 
 // GLOBAL variable to track the audio even when this component is closed/unmounted
 let globalAudio = null;
 
-const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture, roomsSignature, onViewMembers }) => {
+const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture, roomsSignature, onViewMembers, onOpenSettings }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -105,7 +110,7 @@ const DiscoverRooms = ({ joinChatRoom, onClose, onJoin, username, email, picture
                   <button className="participants-button" type="button" title="View members" onClick={() => onViewMembers(room.name)}>
                     <img src={`${process.env.PUBLIC_URL}/participants.png`} alt="View members" />
                   </button>
-                  <button className="settings-button" type="button" title="Room settings">
+                  <button className="settings-button" type="button" title="Room settings" onClick={() => onOpenSettings(room.name)}>
                     <img src={`${process.env.PUBLIC_URL}/settings.png`} alt="Room settings" />
                   </button>
                 </div>

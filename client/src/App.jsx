@@ -7,6 +7,7 @@ import GoogleSignIn from './GoogleSignIn';
 import EmojiPicker from 'emoji-picker-react';
 import { getSocketUrl } from './socket';
 import DiscoverRooms from './DiscoverRooms.jsx';
+import RoomSettingsPage from './RoomSettingsPage.jsx';
 import Admin from './Admin';
 import ParticipantsPage from './ParticipantsPage.jsx';
 import { getAvatarUrl } from './utils/getAvatarUrl.js';
@@ -515,6 +516,10 @@ function App() {
     navigate(`/participants/${encodeURIComponent(roomName)}`);
   };
 
+  const handleOpenRoomSettings = (roomName) => {
+    navigate(`/settings/${encodeURIComponent(roomName)}`);
+  };
+
   const toggleMusic = async () => {
     setIsMusicPlaying((prev) => !prev);
   };
@@ -614,7 +619,15 @@ function App() {
             email={email}
             picture={picture}
             onViewMembers={handleViewMembers}
+            onOpenSettings={handleOpenRoomSettings}
             roomsSignature={roomsSignature}
+          />
+        } />
+
+        <Route path="/settings/:roomName" element={
+          <RoomSettingsRoute
+            room={room}
+            isLoggedIn={isLoggedIn}
           />
         } />
 
@@ -739,6 +752,30 @@ function ParticipantsRoute({ room, isLoggedIn }) {
       navigate(`/chat/${encodeURIComponent(room)}`);
     } else {
       navigate('/discover');
+    }
+
+    function RoomSettingsRoute({ room, isLoggedIn }) {
+      const navigate = useNavigate();
+      const { roomName } = useParams();
+
+      if (!roomName) {
+        return <Navigate to="/discover" replace />;
+      }
+
+      const decodedRoomName = decodeURIComponent(roomName);
+
+      return (
+        <RoomSettingsPage
+          roomName={decodedRoomName}
+          onClose={() => {
+            if (room && isLoggedIn) {
+              navigate(`/chat/${encodeURIComponent(room)}`);
+            } else {
+              navigate('/discover');
+            }
+          }}
+        />
+      );
     }
   };
 
