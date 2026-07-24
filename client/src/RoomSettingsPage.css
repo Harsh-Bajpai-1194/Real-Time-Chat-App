@@ -1,0 +1,60 @@
+.room-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: #fff;
+  z-index: 1000;
+}
+
+.room-settings-container {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-settings-header {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 24px 48px;
+  border-bottom: 1px solid #eee;
+}
+
+.room-settings-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.room-settings-content {
+  padding: 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting-toggle {
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f9f9f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.setting-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 640px) {
+  .room-settings-header {
+    padding: 20px 24px;
+  }
+
+  .room-settings-content {
+    padding: 20px;
+  }
+}

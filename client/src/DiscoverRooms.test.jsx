@@ -31,6 +31,7 @@ describe('DiscoverRooms', () => {
         email={user.email}
         picture={user.picture}
         roomsSignature={Date.now()}
+        onOpenSettings={() => {}}
       />
     );
 
@@ -40,5 +41,27 @@ describe('DiscoverRooms', () => {
 
     // 4. Assertion: Verify that our mock function was called with the correct data
     expect(joinChatRoomMock).toHaveBeenCalledWith('Test Room', user.username, user.email, user.picture);
+  });
+
+  it('opens room settings from the settings button', async () => {
+    const onOpenSettingsMock = jest.fn();
+
+    render(
+      <DiscoverRooms
+        joinChatRoom={() => {}}
+        onClose={() => {}}
+        onJoin={() => {}}
+        username="TestUser"
+        email="test@google.com"
+        picture="https://example.com/avatar.jpg"
+        roomsSignature={Date.now()}
+        onOpenSettings={onOpenSettingsMock}
+      />
+    );
+
+    const settingsButton = await screen.findByRole('button', { name: /room settings/i });
+    fireEvent.click(settingsButton);
+
+    expect(onOpenSettingsMock).toHaveBeenCalledWith('Test Room');
   });
 });
